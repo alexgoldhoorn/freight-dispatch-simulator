@@ -1,0 +1,16 @@
+id,start_lat,start_lon,capacity_kg
+1,40.4168,-3.7038,20000  # Madrid, Spain
+2,41.3851,2.1734,22000   # Barcelona, Spain
+3,39.4702,-6.9208,25000  # Badajoz, Spain
+4,41.6939,-8.8270,21000  # Viana do Castelo, Portugal
+5,38.7223,-9.1393,23000  # Lisbon, Portugal
+6,40.6331,-7.9139,24000  # Viseu, Portugal
+7,42.5977,-8.5374,20000  # Ourense, Spain
+8,37.0902,-8.2439,22000  # Faro, Portugal
+9,43.2630,-2.9343,25000  # San Sebastian, Spain
+10,39.7554,-8.8075,21000 # Leiria, Portugal
+11,40.2105,-0.1147,23000  # Teruel, Spain
+12,38.5267,-9.0809,24000 # Setubal, Portugal
+13,41.9608,2.8847,20000  # Girona, Spain
+14,39.5572,-7.4361,22000 # Caceres, Spain
+15,41.1496,-8.6109,25000 # Porto, Portugal

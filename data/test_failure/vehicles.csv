@@ -1,0 +1,3 @@
+id,start_lat,start_lon,capacity_kg,speed_km_per_hour
+V1,40.71,-74.01,1000.0,60.0
+V2,37.77,-122.42,2000.0,80.0
