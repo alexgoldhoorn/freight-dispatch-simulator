@@ -136,7 +136,9 @@ function generate_route_map(
                 hasproperty(freight_row, :completion_time) ?
                 "Completion: $(round(freight_row.completion_time, digits=2))s" : ""
 
-            hover_text = "Vehicle: $vehicle_id\nFreight: $(freight_row.id)\n$weight_info\n$distance_info\n$time_info"
+            # Get freight ID from appropriate column
+            freight_id = hasproperty(freight_row, :freight_id) ? freight_row.freight_id : freight_row.id
+            hover_text = "Vehicle: $vehicle_id\nFreight: $(freight_id)\n$weight_info\n$distance_info\n$time_info"
 
             # Add route coordinates
             append!(route_lats, route_segment_lats)
@@ -172,7 +174,7 @@ function generate_route_map(
         # Pickup markers (circles)
         pickup_lats = successful_freight.pickup_lat
         pickup_lons = successful_freight.pickup_lon
-        pickup_hover = ["Pickup: $(row.id)" for row in eachrow(successful_freight)]
+        pickup_hover = ["Pickup: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(successful_freight)]
 
         scatter!(
             fig,
@@ -190,7 +192,7 @@ function generate_route_map(
         # Delivery markers (squares)
         delivery_lats = successful_freight.delivery_lat
         delivery_lons = successful_freight.delivery_lon
-        delivery_hover = ["Delivery: $(row.id)" for row in eachrow(successful_freight)]
+        delivery_hover = ["Delivery: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(successful_freight)]
 
         scatter!(
             fig,
@@ -217,7 +219,7 @@ function generate_route_map(
             # Show failed freight at pickup locations
             failed_lats = failed_freight.pickup_lat
             failed_lons = failed_freight.pickup_lon
-            failed_hover = ["UNASSIGNED: $(row.id)" for row in eachrow(failed_freight)]
+            failed_hover = ["UNASSIGNED: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(failed_freight)]
 
             scatter!(
                 fig,

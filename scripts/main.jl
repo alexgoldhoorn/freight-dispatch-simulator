@@ -144,8 +144,18 @@ function main()
     # Generate route map if requested
     if generate_map
         println("\nGenerating route map...")
+        
+        # Merge freight results with original freight data to get coordinates
+        # Join on freight ID to get pickup/delivery coordinates
+        freight_results_with_coords = leftjoin(
+            freight_results_df, 
+            freights_df, 
+            on = :freight_id => :id,
+            makeunique = true
+        )
+        
         generate_route_map(
-            freight_results_df,
+            freight_results_with_coords,
             vehicles_df,
             map_output_file;
             show_failures=true
