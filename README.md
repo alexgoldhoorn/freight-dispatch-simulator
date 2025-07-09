@@ -1,326 +1,183 @@
-# DispatchSimulation.jl
+# FreightSimulator2.jl
 
-[![Build Status](https://github.com/username/DispatchSimulation.jl/workflows/CI/badge.svg)](https://github.com/username/DispatchSimulation.jl/actions)
-[![Coverage](https://codecov.io/gh/username/DispatchSimulation.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/username/DispatchSimulation.jl)
-[![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://username.github.io/DispatchSimulation.jl/stable)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+A Julia package for simulating freight delivery systems with multiple dispatch strategies and interactive visualization capabilities.
 
-## 1. Project Overview & Purpose
+## Features
 
-DispatchSimulation.jl is a Julia package designed to simulate freight dispatch operations using various optimization strategies. This framework models freight distribution systems to evaluate dispatch strategies like First-Come-First-Served (FCFS), Cost-based, Distance-based, and Overall Cost optimization, ultimately improving operational efficiency.
+- **Multiple Dispatch Strategies**: FCFS, Cost-based, Distance-based, and Overall Cost optimization
+- **Interactive Visualization**: Generate HTML route maps with PlotlyJS
+- **Comprehensive Testing**: Full test suite covering all dispatch strategies
+- **Command Line Interface**: Easy-to-use CLI for running simulations
+- **Flexible Data Input**: Support for CSV input files
+- **Result Export**: Export simulation results and vehicle aggregates
 
-### Key Features
-- Multiple dispatch strategies for freight optimization
-- Support for various vehicle types and constraints
-- CSV-based input/output for integration with existing systems
-- Comprehensive simulation analytics and reporting
-- Configurable parameters for different operational scenarios
+## Installation
 
-### Use Cases
-- Logistics optimization analysis
-- Fleet management strategy evaluation
-- Academic research in operations research
-- Supply chain efficiency assessment
-
-## 2. Installation
-
-### Package Manager Installation
-
-```julia
-using Pkg
-Pkg.add("DispatchSimulation")
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd FreightSimulator2.jl
 ```
 
-### Development Installation
-
-To install the development version:
-```julia
-using Pkg
-Pkg.add(url="https://github.com/username/DispatchSimulation.jl")
+2. Install dependencies:
+```bash
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-For local development:
-```julia
-using Pkg
-Pkg.develop(path="/path/to/DispatchSimulation.jl")
-```
-
-## 3. Quick Start / CLI Usage
-
-### Basic Usage
-
-To use this package programmatically:
-```julia
-using DispatchSimulation
-
-result = simulate_dispatch(
-    freights_file="freights.csv",
-    vehicles_file="vehicles.csv",
-    strategy=:fcfs
-)
-```
+## Usage
 
 ### Command Line Interface
 
-Run a simulation via command line:
-```shell
-julia scripts/main.jl data/test0 FCFS results.csv
+```bash
+julia --project=. scripts/main.jl <input_directory> <strategy> <output_file> [options]
 ```
 
-Or run with a specific strategy:
-```shell
-julia scripts/main.jl data/test0 Cost results.csv
+**Arguments:**
+- `input_directory`: Directory containing `freights.csv` and `vehicles.csv`
+- `strategy`: Dispatch strategy (`FCFS`, `Cost`, `Distance`, `OverallCost`)
+- `output_file`: Output CSV file path for freight results
+
+**Options:**
+- `-m [map_file]`: Generate interactive route map (optional HTML file path)
+
+**Examples:**
+```bash
+# Basic simulation
+julia --project=. scripts/main.jl data/test0 FCFS results.csv
+
+# With route map generation
+julia --project=. scripts/main.jl data/test0 FCFS results.csv -m route_map.html
+
+# Show help
+julia --project=. scripts/main.jl --help
 ```
 
-Available strategies:
-- `FCFS` - First-Come-First-Served
-- `Cost` - Cost-based optimization
-- `Distance` - Distance-based optimization
-- `OverallCost` - Overall cost optimization
-
-## 4. Dispatch Strategy Details
-
-### First-Come-First-Served (FCFS)
-- **Strategy**: `FCFS`
-- **Description**: Assigns freights to vehicles in order of arrival
-- **Advantages**: Simple, fair, low computational overhead
-- **Use Cases**: High-volume operations where simplicity is prioritized
-
-### Cost-Based Dispatch
-- **Strategy**: `Cost`
-- **Description**: Minimizes operational cost by selecting the nearest vehicle to pickup location
-- **Optimization**: Considers distance to pickup location as cost metric
-- **Use Cases**: Cost-sensitive operations with variable pricing
-
-### Distance-Based Dispatch
-- **Strategy**: `Distance`
-- **Description**: Minimizes total travel distance (pickup + delivery + return to base)
-- **Optimization**: Assigns vehicle with shortest total distance for each freight
-- **Use Cases**: Time-sensitive deliveries, urban distribution
-
-### Overall Cost Optimization
-- **Strategy**: `OverallCost`
-- **Description**: Minimizes total travel time as a proxy for operational cost
-- **Optimization**: Considers total time including pickup, delivery, and return
-- **Use Cases**: Complex operations requiring optimal resource allocation
-
-## 5. Input Data Formats
-
-### `freights.csv` Format
-
-| Column         | Type     | Description                    |
-|----------------|----------|--------------------------------|
-| `id`           | `String` | Unique freight identifier      |
-| `weight_kg`    | `Float64`| Weight in kilograms            |
-| `pickup_lat`   | `Float64`| Latitude of pickup location    |
-| `pickup_lon`   | `Float64`| Longitude of pickup location   |
-| `delivery_lat` | `Float64`| Latitude of delivery location  |
-| `delivery_lon` | `Float64`| Longitude of delivery location |
-| `pickup_time`  | `Float64`| Pickup time in simulation time |
-| `delivery_time`| `Float64`| Delivery time in simulation time|
-
-### `vehicles.csv` Format
-
-| Column            | Type     | Description                              |
-|-------------------|----------|------------------------------------------|
-| `id`              | `String` | Unique vehicle identifier                |
-| `start_lat`       | `Float64`| Starting latitude                        |
-| `start_lon`       | `Float64`| Starting longitude                       |
-| `capacity_kg`     | `Float64`| Vehicle's weight capacity in kg          |
-| `speed_km_per_hour`| `Float64`| Vehicle speed in km/h                    |
-
-## 6. Output Description
-
-After running the simulation, results are generated in CSV format including:
-
-### Freight Results
-The main output file contains detailed information for each freight:
+### Programmatic Usage
 
 ```julia
-struct FreightResult
-    freight_id::String
-    assigned_vehicle::Union{String, Nothing}
-    pickup_time::Float64
-    delivery_time::Float64
-    completion_time::Float64
-    distance_km::Float64
-    success::Bool
-end
-```
+using FreightSimulator2
+using CSV, DataFrames
 
-### Vehicle Aggregates
-A separate file (`*_vehicles.csv`) contains summary statistics for each vehicle:
+# Load data
+freights_df = CSV.read("data/test0/freights.csv", DataFrame)
+vehicles_df = CSV.read("data/test0/vehicles.csv", DataFrame)
 
-```julia
-struct VehicleAggregate
-    vehicle_id::String
-    total_distance_km::Float64
-    total_busy_time_s::Float64
-    total_freights_handled::Int64
-    utilization_rate::Float64
-end
-```
-
-## 7. Example Scenarios
-
-### Minimum Working Example
-
-```julia
-using DispatchSimulation
-
-# Create sample data
-freights = [(
-    id="F1", 
-    weight_kg=100.0, 
-    pickup_lat=40.71, 
-    pickup_lon=-74.01, 
-    delivery_lat=34.05, 
-    delivery_lon=-118.24, 
-    pickup_time=0.0, 
-    delivery_time=10.0
-)]
-
-vehicles = [(
-    id="V1", 
-    start_lat=40.71, 
-    start_lon=-74.01, 
-    capacity_kg=1000.0, 
-    speed_km_per_hour=60.0
-)]
-
-result = simulate_dispatch(freights, vehicles, strategy=:fcfs)
-```
-
-### Comparing Different Strategies
-
-```julia
-using DispatchSimulation
-
-strategies = ["FCFS", "Cost", "Distance", "OverallCost"]
-results = Dict{String, Tuple{DataFrame, DataFrame}}()
-
-for strategy in strategies
-    freight_results, vehicle_results = Simulation(
-        freights_df, 
-        vehicles_df, 
-        3600.0, 
-        get_strategy(strategy)
-    )
-    results[strategy] = (freight_results, vehicle_results)
-end
-
-# Compare performance
-for (strategy, (freight_df, vehicle_df)) in results
-    success_rate = sum(freight_df.success) / nrow(freight_df)
-    total_distance = sum(vehicle_df.total_distance_km)
-    println("$strategy: Success rate = $success_rate, Total distance = $total_distance km")
-end
-```
-
-### Large-Scale Scenario
-
-```julia
-using DispatchSimulation, CSV, DataFrames
-
-# Load large dataset
-freights_df = CSV.read("data/large_freights.csv", DataFrame)
-vehicles_df = CSV.read("data/large_vehicles.csv", DataFrame)
-
-# Run simulation with different strategies
-for strategy in ["FCFS", "Cost", "Distance", "OverallCost"]
-    println("Running simulation with $strategy strategy...")
-    
-    freight_results, vehicle_results = Simulation(
-        freights_df, 
-        vehicles_df, 
-        3600.0, 
-        get_strategy(strategy)
-    )
-    
-    # Save results
-    CSV.write("results_$(lowercase(strategy)).csv", freight_results)
-    CSV.write("results_$(lowercase(strategy))_vehicles.csv", vehicle_results)
-end
-```
-
-## 8. Simulation Parameter Reference
-
-### Command Line Arguments
-
-| Argument | Position | Description |
-|----------|----------|-------------|
-| `input_directory` | 1 | Directory containing `freights.csv` and `vehicles.csv` |
-| `dispatcher_type` | 2 | Strategy: `FCFS`, `Cost`, `Distance`, or `OverallCost` |
-| `output_file` | 3 | Output CSV file path for freight results |
-
-### Julia Function Parameters
-
-#### `Simulation` Function
-
-```julia
-function Simulation(
-    freights::DataFrame,
-    vehicles::DataFrame,
-    return_to_base_buffer::Float64 = 3600.0,
-    strategy::DispatchStrategy = FCFSStrategy()
+# Run simulation
+freight_results, vehicle_aggregates = Simulation(
+    freights_df, 
+    vehicles_df, 
+    3600.0,  # return to base buffer
+    FCFSStrategy()
 )
+
+# Generate route map
+generate_route_map(freight_results, vehicles_df, "route_map.html")
 ```
 
-Parameters:
-- `freights`: DataFrame containing freight information
-- `vehicles`: DataFrame containing vehicle information  
-- `return_to_base_buffer`: Additional simulation time (seconds) for vehicles to return to base
-- `strategy`: Dispatch strategy instance
+## Data Format
 
-#### Strategy Selection
-
-```julia
-function get_strategy(strategy_name::String)
-    if strategy_name == "FCFS"
-        return FCFSStrategy()
-    elseif strategy_name == "Cost"
-        return CostStrategy()
-    elseif strategy_name == "Distance"
-        return DistanceStrategy()
-    elseif strategy_name == "OverallCost"
-        return OverallCostStrategy()
-    else
-        error("Unknown strategy: " * strategy_name)
-    end
-end
+### Freights CSV
+```csv
+id,weight_kg,pickup_lat,pickup_lon,delivery_lat,delivery_lon,pickup_time,delivery_time
+F1,100.0,40.71,-74.01,34.05,-118.24,0.0,10.0
+F2,200.0,37.77,-122.42,41.87,-87.62,5.0,15.0
 ```
 
-### Performance Considerations
+### Vehicles CSV
+```csv
+id,start_lat,start_lon,capacity_kg,speed_km_per_hour
+V1,40.71,-74.01,500.0,60.0
+V2,37.77,-122.42,1000.0,80.0
+```
 
-- **Simulation Time**: Automatically calculated based on maximum delivery time plus buffer
-- **Distance Calculation**: Uses Haversine formula for geographic distance
-- **Vehicle Routing**: Vehicles return to base after each delivery
-- **Capacity Constraints**: Enforced based on freight weight vs vehicle capacity
+Optional columns for vehicles:
+- `base_lat`, `base_lon`: Vehicle base location (defaults to start location)
 
----
+## Dispatch Strategies
+
+1. **FCFS (First Come, First Served)**: Processes freight in order of arrival
+2. **Cost**: Assigns freight to the vehicle with lowest cost to pickup
+3. **Distance**: Optimizes for shortest total distance (pickup + delivery + return)
+4. **OverallCost**: Minimizes total time cost for the entire route
+
+## Output
+
+### Freight Results CSV
+- `freight_id`: Freight identifier
+- `assigned_vehicle`: Vehicle assigned to freight
+- `pickup_time`: Pickup timestamp
+- `delivery_time`: Delivery timestamp
+- `completion_time`: Total completion time
+- `distance_km`: Total distance traveled
+- `success`: Whether freight was successfully assigned
+
+### Vehicle Aggregates CSV
+- `vehicle_id`: Vehicle identifier
+- `total_distance_km`: Total distance traveled
+- `total_busy_time_s`: Total time spent on deliveries
+- `total_freights_handled`: Number of freights handled
+- `utilization_rate`: Vehicle utilization rate
+
+## Testing
+
+Run the test suite:
+```bash
+julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+The tests cover:
+- Basic simulation functionality
+- All dispatch strategies
+- CLI interface
+- Data integrity and consistency
+
+## Interactive Visualization
+
+The package generates interactive HTML maps showing:
+- Vehicle routes with different colors
+- Pickup points (green circles)
+- Delivery points (blue squares)
+- Vehicle bases (purple diamonds)
+- Failed freight (red X marks)
+- Hover information for detailed data
+
+## Dependencies
+
+- `CSV.jl`: CSV file handling
+- `DataFrames.jl`: Data manipulation
+- `SimJulia.jl`: Discrete event simulation
+- `Plots.jl`: Plotting infrastructure
+- `PlotlyJS.jl`: Interactive visualization
+- `Colors.jl`: Color handling
+- `ResumableFunctions.jl`: Coroutine support
+
+## Project Structure
+
+```
+FreightSimulator2.jl/
+├── Project.toml                 # Package configuration
+├── Manifest.toml               # Dependency lock file
+├── README.md                   # This file
+├── src/
+│   ├── FreightSimulator2.jl    # Main module
+│   └── MapVisualization.jl     # Route visualization
+├── test/
+│   └── runtests.jl            # Test suite
+├── scripts/
+│   └── main.jl                # CLI interface
+└── data/
+    ├── test0/                 # Basic test data
+    ├── test1/                 # Additional test data
+    └── test_failure/          # Failure scenario data
+```
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Code should follow Julia formatting conventions. Use:
+```bash
+julia --project=. -e 'using JuliaFormatter; format_file("filename.jl")'
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Citation
-
-If you use this package in your research, please cite:
-
-```bibtex
-@software{dispatchsimulation_jl,
-  title = {DispatchSimulation.jl: A Julia Package for Freight Dispatch Optimization},
-  author = {Your Name},
-  year = {2024},
-  url = {https://github.com/username/DispatchSimulation.jl}
-}
-```
-
-## References
-
-- [SimJulia Documentation](https://github.com/BenLauwens/SimJulia.jl) - Discrete event simulation framework
-- [DataFrames Documentation](https://dataframes.juliadata.org/stable/) - Data manipulation and analysis
+This project is licensed under the MIT License.
