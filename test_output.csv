@@ -1,3 +1,0 @@
-freight_id,assigned_vehicle,pickup_time,delivery_time,completion_time,distance_km,success
-F1,V2,0.0,10.0,388054.9918984842,8623.44426441076,true
-F2,V1,5.0,15.0,495498.88226080826,8258.23137101347,true
