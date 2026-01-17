@@ -1,0 +1,37 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+deps/deps.jl
+Manifest.toml
+
+# Generated files
+docs/build/
+docs/site/
+
+# Output files
+*.csv
+*.html
+out_test/
+results*.csv
+test_output*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python (if any test scripts remain)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
