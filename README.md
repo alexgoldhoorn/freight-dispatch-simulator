@@ -1,4 +1,4 @@
-# FreightSimulator2.jl
+# Freight Dispatch Simulator
 
 A Julia package for simulating freight delivery systems with multiple dispatch strategies and interactive visualization capabilities.
 
@@ -15,8 +15,8 @@ A Julia package for simulating freight delivery systems with multiple dispatch s
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd FreightSimulator2.jl
+git clone https://github.com/alexgoldhoorn/freight-dispatch-simulator.git
+cd freight-dispatch-simulator
 ```
 
 2. Install dependencies:
@@ -154,7 +154,7 @@ The package generates interactive HTML maps showing:
 ## Project Structure
 
 ```
-FreightSimulator2.jl/
+freight-dispatch-simulator/
 ├── Project.toml                 # Package configuration
 ├── Manifest.toml               # Dependency lock file
 ├── README.md                   # This file
