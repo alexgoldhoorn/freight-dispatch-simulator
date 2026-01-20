@@ -3,10 +3,10 @@ using CSV
 using DataFrames
 
 # Include the module
-include("../src/FreightSimulator2.jl")
-using .FreightSimulator2
+include("../src/FreightDispatchSimulator.jl")
+using .FreightDispatchSimulator
 
-@testset "FreightSimulator2.jl Tests" begin
+@testset "FreightDispatchSimulator.jl Tests" begin
     @testset "Basic simulation test with test0 data" begin
         # Load test0 data
         freights_df = CSV.read("../data/test0/freights.csv", DataFrame)

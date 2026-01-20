@@ -1,6 +1,6 @@
-name = "FreightSimulator2"
+name = "FreightDispatchSimulator"
 uuid = "2f3a4b5c-6d7e-8f9a-b0c1-d2e3f4a5b6c7"
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
