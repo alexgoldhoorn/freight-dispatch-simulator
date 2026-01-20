@@ -2,9 +2,13 @@
 
 A Julia package for simulating freight delivery systems with multiple dispatch strategies and interactive visualization capabilities.
 
+## Important: Greedy Heuristics
+
+The current dispatch strategies are **greedy heuristics** that make locally optimal decisions without backtracking. They do NOT guarantee globally optimal solutions. Each strategy processes freights sequentially and assigns to the "best" currently available vehicle without lookahead or reassignment. For provably optimal solutions, see [Future Work](#future-work).
+
 ## Features
 
-- **Multiple Dispatch Strategies**: FCFS, Cost-based, Distance-based, and Overall Cost optimization
+- **Four Greedy Dispatch Strategies**: FCFS, Cost-based, Distance-based, and Overall Cost
 - **Interactive Visualization**: Generate HTML route maps with PlotlyJS
 - **Comprehensive Testing**: Full test suite covering all dispatch strategies
 - **Command Line Interface**: Easy-to-use CLI for running simulations
@@ -55,7 +59,7 @@ julia --project=. scripts/main.jl --help
 ### Programmatic Usage
 
 ```julia
-using FreightSimulator2
+using FreightDispatchSimulator
 using CSV, DataFrames
 
 # Load data
@@ -72,6 +76,20 @@ freight_results, vehicle_aggregates = Simulation(
 
 # Generate route map
 generate_route_map(freight_results, vehicles_df, "route_map.html")
+```
+
+## Examples and Visualizations
+
+Check out `examples.ipynb` for comprehensive examples with visualizations:
+- Comparison of all four dispatch strategies
+- Performance metrics (distance, utilization, success rates, completion times)
+- Interactive charts and graphs using Plots.jl
+- Route map generation examples
+- Strategy performance dashboard
+
+To run the notebook:
+```bash
+jupyter notebook examples.ipynb
 ```
 
 ## Data Format
@@ -95,10 +113,30 @@ Optional columns for vehicles:
 
 ## Dispatch Strategies
 
-1. **FCFS (First Come, First Served)**: Processes freight in order of arrival
-2. **Cost**: Assigns freight to the vehicle with lowest cost to pickup
-3. **Distance**: Optimizes for shortest total distance (pickup + delivery + return)
-4. **OverallCost**: Minimizes total time cost for the entire route
+All strategies are **greedy heuristics** implemented in `src/strategies.jl`:
+
+| Strategy | Greedy Criterion | Best Use Case |
+|----------|------------------|---------------|
+| **FCFS** | First available vehicle | Simple, predictable allocation |
+| **Cost** | Closest vehicle to pickup | Minimize empty miles |
+| **Distance** | Shortest total route distance | Minimize fuel consumption |
+| **OverallCost** | Fastest route completion (accounts for speed) | Time-sensitive deliveries |
+
+### Usage Examples
+
+```julia
+using FreightDispatchSimulator
+using CSV, DataFrames
+
+freights_df = CSV.read("data/urban/freights.csv", DataFrame)
+vehicles_df = CSV.read("data/urban/vehicles.csv", DataFrame)
+
+# Run with different strategies
+freight_results, vehicle_agg = Simulation(freights_df, vehicles_df, 3600.0, FCFSStrategy())
+freight_results, vehicle_agg = Simulation(freights_df, vehicles_df, 3600.0, DistanceStrategy())
+```
+
+See `examples.ipynb` for detailed comparisons with realistic datasets (urban, long-haul, mixed scenarios).
 
 ## Output
 
@@ -153,23 +191,50 @@ The package generates interactive HTML maps showing:
 
 ## Project Structure
 
+The package follows Julia best practices with a modular architecture:
+
 ```
 freight-dispatch-simulator/
-├── Project.toml                 # Package configuration
-├── Manifest.toml               # Dependency lock file
-├── README.md                   # This file
+├── Project.toml                      # Package configuration
+├── Manifest.toml                     # Dependency lock file
+├── README.md                         # This file
+├── examples.ipynb                    # Jupyter notebook with examples
 ├── src/
-│   ├── FreightSimulator2.jl    # Main module
-│   └── MapVisualization.jl     # Route visualization
+│   ├── FreightDispatchSimulator.jl  # Main module (exports all functionality)
+│   ├── types.jl                      # Data structure definitions
+│   ├── distances.jl                  # Distance calculations (Haversine)
+│   ├── strategies.jl                 # Dispatch strategy implementations
+│   ├── dispatcher.jl                 # Dispatcher logic
+│   ├── vehicle.jl                    # Vehicle process
+│   ├── simulation.jl                 # Main simulation orchestration
+│   └── MapVisualization.jl           # Route visualization
 ├── test/
-│   └── runtests.jl            # Test suite
+│   └── runtests.jl                  # Test suite
 ├── scripts/
-│   └── main.jl                # CLI interface
+│   └── main.jl                      # CLI interface
 └── data/
-    ├── test0/                 # Basic test data
-    ├── test1/                 # Additional test data
-    └── test_failure/          # Failure scenario data
+    ├── urban/                       # US: NYC urban deliveries (15 freights, 5 vehicles)
+    ├── longhaul/                    # US: Cross-country routes (8 freights, 3 vehicles)
+    ├── mixed/                       # US: Combined urban & long-haul (20 freights, 6 vehicles)
+    ├── eu_urban/                    # EU: Netherlands cities (12 freights, 4 vehicles)
+    ├── eu_longhaul/                 # EU: Cross-Europe routes (10 freights, 4 vehicles)
+    ├── iberia/                      # Iberia: Spain & Portugal (15 freights, 5 vehicles)
+    ├── benelux/                     # Benelux: NL/BE/LU region (12 freights, 4 vehicles)
+    ├── test0/                       # Basic test data
+    ├── test1/                       # Additional test data
+    └── test_failure/                # Failure scenario data
 ```
+
+### Architecture
+
+The codebase is organized into logical modules:
+- **types.jl**: Core data structures (Freight, Vehicle, VehicleState, etc.)
+- **distances.jl**: Geographic distance calculations
+- **strategies.jl**: Dispatch strategy definitions and vehicle selection logic
+- **dispatcher.jl**: Main dispatching process that assigns freights to vehicles
+- **vehicle.jl**: Vehicle simulation process
+- **simulation.jl**: Top-level simulation orchestration
+- **MapVisualization.jl**: Interactive route map generation
 
 ## Contributing
 
@@ -177,6 +242,47 @@ Code should follow Julia formatting conventions. Use:
 ```bash
 julia --project=. -e 'using JuliaFormatter; format_file("filename.jl")'
 ```
+
+## Future Work
+
+The current implementation uses greedy heuristics that provide fast, reasonable solutions but do not guarantee optimality. Future enhancements could include:
+
+### True Optimization Approaches
+
+**Mixed Integer Linear Programming (MILP)**
+- Formulate as Vehicle Routing Problem with Time Windows (VRPTW)
+- Use optimization solvers (HiGHS.jl, Gurobi, CPLEX via JuMP.jl)
+- Provide provably optimal solutions (within time limits)
+- Better for batch/offline planning scenarios
+
+**Challenges with MILP Integration**:
+- Current simulation is event-driven and dynamic (freights arrive over time)
+- MILP works best for static problems (all freights known upfront)
+- Would require different architecture (batch assignment or rolling horizon)
+- Computational cost scales with problem size
+
+**Example MILP Formulation** (simplified):
+```julia
+using JuMP, HiGHS
+
+model = Model(HiGHS.Optimizer)
+@variable(model, x[1:n_freights, 1:n_vehicles], Bin)  # Assignment variables
+@constraint(model, [i=1:n_freights], sum(x[i,:]) == 1)  # Each freight assigned once
+@objective(model, Min, sum(distance[i,j] * x[i,j] for i=1:n_freights, j=1:n_vehicles))
+optimize!(model)
+```
+
+### Other Potential Enhancements
+
+- **Metaheuristics**: Simulated annealing, genetic algorithms, ant colony optimization
+- **Machine Learning**: Learn dispatch policies from historical data
+- **Multi-objective Optimization**: Balance multiple criteria (distance, time, cost, emissions)
+- **Dynamic Reassignment**: Allow in-flight route adjustments
+- **Stochastic Models**: Account for uncertainty in travel times and freight arrivals
+
+### Contributing
+
+Contributions implementing these enhancements are welcome! Please open an issue to discuss major changes.
 
 ## License
 

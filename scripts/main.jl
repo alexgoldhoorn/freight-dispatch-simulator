@@ -1,6 +1,6 @@
-include("../src/FreightSimulator2.jl")
+include("../src/FreightDispatchSimulator.jl")
 
-using .FreightSimulator2
+using .FreightDispatchSimulator
 using DataFrames, CSV
 using Base.Meta
 
