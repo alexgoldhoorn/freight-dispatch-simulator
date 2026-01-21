@@ -70,6 +70,10 @@ export Simulation
 # Export visualization
 export generate_route_map
 
+# Export MILP optimization
+export optimize_dispatch,
+    MILPResult
+
 # Include all module files in dependency order
 include("distances.jl")
 include("types.jl")
@@ -78,5 +82,6 @@ include("dispatcher.jl")
 include("vehicle.jl")
 include("simulation.jl")
 include("MapVisualization.jl")
+include("MILPOptimizer.jl")
 
 end # module FreightDispatchSimulator
