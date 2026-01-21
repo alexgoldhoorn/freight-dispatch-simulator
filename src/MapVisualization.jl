@@ -52,6 +52,10 @@ function generate_route_map(
     # Get unique vehicles that have assigned freight
     successful_freight =
         filter(row -> row.success == true && row.assigned_vehicle !== nothing, freight_df)
+    failed_freight = filter(
+        row -> row.success == false || row.assigned_vehicle === nothing,
+        freight_df,
+    )
     unique_vehicles = unique(successful_freight.assigned_vehicle)
 
     # Create a color palette with enough colors for all vehicles
@@ -69,13 +73,24 @@ function generate_route_map(
     # Create consistent vehicle→color mapping
     vehicle_colors = Dict(zip(unique_vehicles, palette))
 
+    # Build informative title
+    n_total = nrow(freight_df)
+    n_success = nrow(successful_freight)
+    n_failed = nrow(failed_freight)
+    full_title = "$title: $n_success/$n_total freights assigned"
+    if n_failed > 0
+        full_title *= " ($n_failed failed)"
+    end
+
     # Initialize plot with coastlines
     fig = plot(
-        title = title,
-        legend = :outertopright,
-        size = (1200, 800),
-        showaxis = false,
-        grid = false,
+        title = full_title,
+        legend = :outerright,
+        size = (1400, 900),
+        showaxis = true,
+        grid = true,
+        xlabel = "Longitude",
+        ylabel = "Latitude",
     )
 
     # Add coastlines if possible (this is a basic implementation)
@@ -169,42 +184,84 @@ function generate_route_map(
         )
     end
 
-    # Add pickup and delivery markers
+    # Add pickup and delivery markers (color-coded by vehicle)
     if !isempty(successful_freight)
-        # Pickup markers (circles)
-        pickup_lats = successful_freight.pickup_lat
-        pickup_lons = successful_freight.pickup_lon
-        pickup_hover = ["Pickup: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(successful_freight)]
+        # Group by vehicle and add markers
+        for vehicle_id in unique_vehicles
+            vehicle_freight = filter(
+                row -> row.assigned_vehicle == vehicle_id && row.success == true,
+                freight_df,
+            )
 
+            if isempty(vehicle_freight)
+                continue
+            end
+
+            vehicle_color = vehicle_colors[vehicle_id]
+
+            # Pickup markers (circles) for this vehicle
+            pickup_lats = vehicle_freight.pickup_lat
+            pickup_lons = vehicle_freight.pickup_lon
+            freight_ids = [hasproperty(row, :freight_id) ? row.freight_id : row.id for row in eachrow(vehicle_freight)]
+            pickup_hover = ["Vehicle $vehicle_id\nPickup: $fid" for fid in freight_ids]
+
+            scatter!(
+                fig,
+                pickup_lons,
+                pickup_lats,
+                markershape = :circle,
+                markersize = 10,
+                markercolor = vehicle_color,
+                markerstrokewidth = 2,
+                markerstrokecolor = :black,
+                label = "",  # Don't add to legend (already have route line)
+                hover = pickup_hover,
+                alpha = 0.8,
+            )
+
+            # Delivery markers (squares) for this vehicle
+            delivery_lats = vehicle_freight.delivery_lat
+            delivery_lons = vehicle_freight.delivery_lon
+            delivery_hover = ["Vehicle $vehicle_id\nDelivery: $fid" for fid in freight_ids]
+
+            scatter!(
+                fig,
+                delivery_lons,
+                delivery_lats,
+                markershape = :square,
+                markersize = 10,
+                markercolor = vehicle_color,
+                markerstrokewidth = 2,
+                markerstrokecolor = :black,
+                label = "",  # Don't add to legend
+                hover = delivery_hover,
+                alpha = 0.8,
+            )
+        end
+
+        # Add legend entries for marker types (one-time, not per vehicle)
+        # Use dummy plots just for legend
         scatter!(
             fig,
-            pickup_lons,
-            pickup_lats,
+            [NaN],
+            [NaN],
             markershape = :circle,
-            markersize = 6,
-            markercolor = :green,
-            markerstrokewidth = 1,
-            markerstrokecolor = :darkgreen,
-            label = "Pickup Points",
-            hover = pickup_hover,
+            markersize = 8,
+            markercolor = :lightgray,
+            markerstrokewidth = 2,
+            markerstrokecolor = :black,
+            label = "⚫ Pickup",
         )
-
-        # Delivery markers (squares)
-        delivery_lats = successful_freight.delivery_lat
-        delivery_lons = successful_freight.delivery_lon
-        delivery_hover = ["Delivery: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(successful_freight)]
-
         scatter!(
             fig,
-            delivery_lons,
-            delivery_lats,
+            [NaN],
+            [NaN],
             markershape = :square,
-            markersize = 6,
-            markercolor = :blue,
-            markerstrokewidth = 1,
-            markerstrokecolor = :darkblue,
-            label = "Delivery Points",
-            hover = delivery_hover,
+            markersize = 8,
+            markercolor = :lightgray,
+            markerstrokewidth = 2,
+            markerstrokecolor = :black,
+            label = "■ Delivery",
         )
     end
 
@@ -219,29 +276,28 @@ function generate_route_map(
             # Show failed freight at pickup locations
             failed_lats = failed_freight.pickup_lat
             failed_lons = failed_freight.pickup_lon
-            failed_hover = ["UNASSIGNED: $(hasproperty(row, :freight_id) ? row.freight_id : row.id)" for row in eachrow(failed_freight)]
+            freight_ids = [hasproperty(row, :freight_id) ? row.freight_id : row.id for row in eachrow(failed_freight)]
+            failed_hover = ["⚠️ UNASSIGNED: $fid\nNo vehicle available" for fid in freight_ids]
 
             scatter!(
                 fig,
                 failed_lons,
                 failed_lats,
-                markershape = :x,
-                markersize = 8,
+                markershape = :xcross,
+                markersize = 12,
                 markercolor = :red,
-                markerstrokewidth = 2,
-                label = "Failed Freight",
+                markerstrokewidth = 3,
+                label = "❌ Failed/Unassigned",
                 hover = failed_hover,
+                alpha = 0.9,
             )
         end
     end
 
-    # Add vehicle base locations
+    # Add vehicle base locations (color-coded by vehicle)
     if !isempty(vehicle_df)
-        base_lats = Float64[]
-        base_lons = Float64[]
-        base_hover = String[]
-
         for vehicle_row in eachrow(vehicle_df)
+            vehicle_id = vehicle_row.id
             base_lat =
                 hasproperty(vehicle_row, :base_lat) && !ismissing(vehicle_row.base_lat) ?
                 vehicle_row.base_lat : vehicle_row.start_lat
@@ -249,22 +305,36 @@ function generate_route_map(
                 hasproperty(vehicle_row, :base_lon) && !ismissing(vehicle_row.base_lon) ?
                 vehicle_row.base_lon : vehicle_row.start_lon
 
-            push!(base_lats, base_lat)
-            push!(base_lons, base_lon)
-            push!(base_hover, "Base: $(vehicle_row.id)")
+            # Get vehicle color if it has assignments, otherwise use gray
+            vehicle_color = haskey(vehicle_colors, vehicle_id) ?
+                           vehicle_colors[vehicle_id] : RGB(0.7, 0.7, 0.7)
+
+            scatter!(
+                fig,
+                [base_lon],
+                [base_lat],
+                markershape = :star5,
+                markersize = 14,
+                markercolor = vehicle_color,
+                markerstrokewidth = 2,
+                markerstrokecolor = :black,
+                label = "",  # Don't add to legend
+                hover = ["⭐ Base: $vehicle_id"],
+                alpha = 0.9,
+            )
         end
 
+        # Add legend entry for bases
         scatter!(
             fig,
-            base_lons,
-            base_lats,
-            markershape = :diamond,
-            markersize = 8,
-            markercolor = :purple,
-            markerstrokewidth = 1,
-            markerstrokecolor = :darkmagenta,
-            label = "Vehicle Bases",
-            hover = base_hover,
+            [NaN],
+            [NaN],
+            markershape = :star5,
+            markersize = 10,
+            markercolor = :gold,
+            markerstrokewidth = 2,
+            markerstrokecolor = :black,
+            label = "⭐ Base",
         )
     end
 
