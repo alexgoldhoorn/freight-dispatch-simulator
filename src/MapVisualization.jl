@@ -313,7 +313,7 @@ function generate_route_map(
                 fig,
                 [base_lon],
                 [base_lat],
-                markershape = :star5,
+                markershape = :hexagon,
                 markersize = 14,
                 markercolor = vehicle_color,
                 markerstrokewidth = 2,
@@ -329,12 +329,12 @@ function generate_route_map(
             fig,
             [NaN],
             [NaN],
-            markershape = :star5,
+            markershape = :hexagon,
             markersize = 10,
             markercolor = :gold,
             markerstrokewidth = 2,
             markerstrokecolor = :black,
-            label = "⭐ Base",
+            label = "⬡ Base",
         )
     end
 

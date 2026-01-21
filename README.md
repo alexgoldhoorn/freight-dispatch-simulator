@@ -184,7 +184,7 @@ The package generates interactive HTML maps with clear color-coding by vehicle:
 - **Route Lines**: Each vehicle has a unique color showing its path
 - **⚫ Pickup Points**: Circles at freight pickup locations (color-matched to vehicle)
 - **■ Delivery Points**: Squares at freight delivery locations (color-matched to vehicle)
-- **⭐ Vehicle Bases**: Stars showing where vehicles start/return (color-matched to vehicle)
+- **⬡ Vehicle Bases**: Hexagons showing where vehicles start/return (color-matched to vehicle)
 - **❌ Failed Freight**: Red X marks for unassigned freights
 - **Hover Info**: Mouse over any element for detailed information
 
@@ -193,7 +193,8 @@ The package generates interactive HTML maps with clear color-coding by vehicle:
 2. Follow a single color to see one vehicle's entire route
 3. Circles indicate where freights are picked up
 4. Squares indicate where freights are delivered
-5. Failed freights show as red X at their pickup location
+5. Hexagons indicate vehicle bases
+6. Failed freights show as red X at their pickup location
 
 The map title shows total freights and how many were successfully assigned vs failed.
 
