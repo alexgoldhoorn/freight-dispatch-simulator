@@ -87,9 +87,16 @@ Check out `examples.ipynb` for comprehensive examples with visualizations:
 - Route map generation examples
 - Strategy performance dashboard
 
-To run the notebook:
+To run the notebook (recommended method to avoid long setup times):
+```bash
+# Start Jupyter with the project environment already activated
+julia --project=. -e 'using IJulia; notebook(dir=pwd())'
+```
+
+Or if you prefer the traditional way:
 ```bash
 jupyter notebook examples.ipynb
+# Note: First cell will activate environment (may take longer on first run)
 ```
 
 ## Data Format
