@@ -91,6 +91,10 @@ export generate_route_map
 export optimize_dispatch,
     MILPResult
 
+# Export local search metaheuristic
+export local_search_optimize,
+    LocalSearchResult
+
 # Include all module files in dependency order
 include("distances.jl")
 include("types.jl")
@@ -100,5 +104,6 @@ include("vehicle.jl")
 include("simulation.jl")
 include("MapVisualization.jl")
 include("MILPOptimizer.jl")
+include("LocalSearch.jl")
 
 end # module FreightDispatchSimulator
