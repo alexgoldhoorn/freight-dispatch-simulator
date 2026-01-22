@@ -1,16 +1,17 @@
 """
     FreightDispatchSimulator
 
-A Julia package for simulating freight delivery systems with multiple dispatch strategies
-and interactive visualization capabilities.
+A Julia package for simulating freight delivery systems with both greedy heuristics
+and exact optimization, featuring interactive visualization capabilities.
 
 # Features
-- Multiple dispatch strategies: FCFS, Cost-based, Distance-based, and Overall Cost
+- Greedy dispatch strategies: FCFS, Cost, Distance, OverallCost
+- MILP exact optimization: Provably optimal solutions using JuMP + HiGHS
 - Interactive route visualization with PlotlyJS
 - Discrete event simulation using SimJulia
-- Comprehensive performance metrics
+- Comprehensive performance metrics and comparisons
 
-# Quick Start
+# Quick Start - Greedy Heuristic
 ```julia
 using FreightDispatchSimulator
 using CSV, DataFrames
@@ -19,7 +20,7 @@ using CSV, DataFrames
 freights_df = CSV.read("freights.csv", DataFrame)
 vehicles_df = CSV.read("vehicles.csv", DataFrame)
 
-# Run simulation with distance-based strategy
+# Run simulation with greedy strategy
 freight_results, vehicle_aggregates = Simulation(
     freights_df,
     vehicles_df,
@@ -31,8 +32,24 @@ freight_results, vehicle_aggregates = Simulation(
 generate_route_map(freight_results, vehicles_df, "route_map.html")
 ```
 
+# Quick Start - MILP Optimization
+```julia
+using FreightDispatchSimulator
+using CSV, DataFrames
+
+# Load data
+freights = CSV.read("freights.csv", DataFrame)
+vehicles = CSV.read("vehicles.csv", DataFrame)
+
+# Find optimal solution
+result = optimize_dispatch(freights, vehicles, time_limit=60.0)
+
+println("Optimal distance: ", result.objective_value, " km")
+generate_route_map(result.freight_results, vehicles, "optimal_map.html")
+```
+
 # Exports
-The module exports types, strategies, simulation functions, and utilities.
+The module exports types, strategies, simulation functions, optimization, and visualization.
 """
 module FreightDispatchSimulator
 
