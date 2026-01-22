@@ -15,10 +15,15 @@ docs/site/
 out_test/
 results*.csv
 test_output*.csv
+route_map*.html
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
 
 # Editor files
 .vscode/
