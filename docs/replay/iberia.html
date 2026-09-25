@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iberia · 15 freights, 5 trucks: greedy vs MILP</title>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+  :root { --bg:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --line:#e1e0d9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { display:flex; align-items:baseline; gap:16px; padding:14px 20px 0; flex-wrap:wrap; }
+  h1 { font-size:18px; margin:0; font-weight:650; }
+  #clock { font-variant-numeric:tabular-nums; font-size:18px; font-weight:650; margin-left:auto; }
+  .legend { color:var(--ink2); font-size:12px; padding:4px 20px 0; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .sym { display:inline-block; width:10px; height:10px; margin-right:5px; vertical-align:-1px; }
+  #map { width:100%; height:calc(100vh - 128px); min-height:420px; }
+  .controls { display:flex; gap:12px; align-items:center; padding:0 20px 12px; }
+  button { font:inherit; font-size:13px; padding:5px 14px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; color:var(--ink); }
+  input[type=range] { flex:1; }
+  body.capture .controls { display:none; }
+  body.capture #map { height:calc(100vh - 76px); }
+</style>
+</head>
+<body>
+<header><h1 id="title"></h1><div id="clock"></div></header>
+<div class="legend">
+  <span><span class="sym" style="border:2px solid #52514e;border-radius:50%"></span>waiting for pickup</span>
+  <span><span class="sym" style="border:2px solid #d03b3b;border-radius:50%"></span>waiting, past deadline</span>
+  <span><span class="sym" style="background:#0ca30c"></span>delivered on time</span>
+  <span><span class="sym" style="background:#d03b3b"></span>delivered late</span>
+  <span>● vehicle (bigger when loaded) · thin line = route driven so far</span>
+</div>
+<div id="map"></div>
+<div class="controls"><button id="play">Pause</button><input id="slider" type="range" min="0" max="1000" value="0"><span id="speed" style="color:var(--muted);font-size:12px"></span></div>
+<script>
+const D = {"title":"Iberia · 15 freights, 5 trucks: greedy vs MILP","tmax":250200.33116957615,"lat":[36.672424,44.078076],"lon":[-10.496824,3.5309239999999997],"runs":[{"title":"Greedy · Distance rule","vehicles":[{"id":"V1","color":"#2a78d6","start":[40.4168,-3.7038],"base":[40.4168,-3.7038],"km_per_s":0.020833333333333332,"legs":[[0.0,0.0,40.4168,-3.7038,40.4168,-3.7038,0.0],[0.0,24261.286619749408,40.4168,-3.7038,41.3851,2.1734,1.0],[24261.286619749408,48522.573239498815,41.3851,2.1734,40.4168,-3.7038,0.0],[48522.573239498815,72783.85985924822,40.4168,-3.7038,41.3851,2.1734,0.0],[72783.85985924822,106151.28918634968,41.3851,2.1734,43.3614,-5.8593,1.0],[106151.28918634968,124048.12281738686,43.3614,-5.8593,40.4168,-3.7038,0.0],[124048.12281738686,148165.58948826604,40.4168,-3.7038,38.7223,-9.1393,0.0],[148165.58948826604,161331.7737634596,38.7223,-9.1393,41.1579,-8.6291,1.0],[161331.7737634596,181621.74581619326,41.1579,-8.6291,40.4168,-3.7038,0.0]]},{"id":"V2","color":"#eb6834","start":[41.3851,2.1734],"base":[41.3851,2.1734],"km_per_s":0.021666666666666667,"legs":[[3600.0,3600.0,41.3851,2.1734,41.3851,2.1734,0.0],[3600.0,50052.8597821549,41.3851,2.1734,38.7223,-9.1393,1.0],[50052.8597821549,96505.7195643098,38.7223,-9.1393,41.3851,2.1734,0.0],[96505.7195643098,119833.8797756073,41.3851,2.1734,40.4168,-3.7038,0.0],[119833.8797756073,143023.7515745296,40.4168,-3.7038,38.7223,-9.1393,1.0],[143023.7515745296,189476.6113566845,38.7223,-9.1393,41.3851,2.1734,0.0]]},{"id":"V3","color":"#1baf7a","start":[38.7223,-9.1393],"base":[38.7223,-9.1393],"km_per_s":0.021111111111111112,"legs":[[7200.0,7200.0,38.7223,-9.1393,38.7223,-9.1393,0.0],[7200.0,22048.188366774324,38.7223,-9.1393,37.3891,-5.9845,1.0],[22048.188366774324,36896.37673354865,37.3891,-5.9845,38.7223,-9.1393,0.0],[36896.37673354865,72918.64260091895,38.7223,-9.1393,39.4699,-0.3763,0.0],[72918.64260091895,87279.37942640798,39.4699,-0.3763,41.3851,2.1734,1.0],[87279.37942640798,134954.68288704063,41.3851,2.1734,38.7223,-9.1393,0.0],[134954.68288704063,158754.8144701451,38.7223,-9.1393,40.4168,-3.7038,0.0],[158754.8144701451,177238.44574665657,40.4168,-3.7038,37.3891,-5.9845,1.0],[177238.44574665657,192086.6341134309,37.3891,-5.9845,38.7223,-9.1393,0.0]]},{"id":"V4","color":"#eda100","start":[37.3891,-5.9845],"base":[37.3891,-5.9845],"km_per_s":0.020555555555555556,"legs":[[10800.0,10800.0,37.3891,-5.9845,37.3891,-5.9845,0.0],[10800.0,29783.188878579356,37.3891,-5.9845,40.4168,-3.7038,1.0],[29783.188878579356,48766.37775715871,40.4168,-3.7038,37.3891,-5.9845,0.0],[48766.37775715871,81077.54047910542,37.3891,-5.9845,43.3614,-5.8593,0.0],[81077.54047910542,102951.78548240426,43.3614,-5.8593,41.6488,-0.8891,1.0],[102951.78548240426,134293.83909037552,41.6488,-0.8891,37.3891,-5.9845,0.0],[134293.83909037552,166605.00181232224,37.3891,-5.9845,43.3614,-5.8593,0.0],[166605.00181232224,184743.68454648153,43.3614,-5.8593,40.4168,-3.7038,1.0],[184743.68454648153,203726.87342506088,40.4168,-3.7038,37.3891,-5.9845,0.0]]},{"id":"V5","color":"#e87ba4","start":[43.3614,-5.8593],"base":[43.3614,-5.8593],"km_per_s":0.021388888888888888,"legs":[[14400.0,31831.980809451794,43.3614,-5.8593,40.4168,-3.7038,0.0],[31831.980809451794,45977.527487958636,40.4168,-3.7038,39.4699,-0.3763,1.0],[45977.527487958636,75396.93429219113,39.4699,-0.3763,43.3614,-5.8593,0.0],[75396.93429219113,96418.93598367313,43.3614,-5.8593,41.6488,-0.8891,0.0],[96418.93598367313,109179.59863121886,41.6488,-0.8891,40.4168,-3.7038,1.0],[109179.59863121886,126611.57944067066,40.4168,-3.7038,43.3614,-5.8593,0.0],[126611.57944067066,142255.76981946162,43.3614,-5.8593,41.1579,-8.6291,0.0],[142255.76981946162,157899.9601982526,41.1579,-8.6291,43.3614,-5.8593,1.0],[157899.9601982526,157899.9601982526,43.3614,-5.8593,43.3614,-5.8593,0.0],[157899.9601982526,187319.36700248512,43.3614,-5.8593,39.4699,-0.3763,0.0],[187319.36700248512,222873.81123521426,39.4699,-0.3763,38.7223,-9.1393,1.0],[222873.81123521426,250200.33116957615,38.7223,-9.1393,43.3614,-5.8593,0.0]]}],"freights":[{"id":"F1","ready":0.0,"due":54000.0,"pick":0.0,"deliv":24261.286619749408,"v":0,"p":[40.4168,-3.7038],"d":[41.3851,2.1734]},{"id":"F2","ready":3600.0,"due":82800.0,"pick":3600.0,"deliv":50052.8597821549,"v":1,"p":[41.3851,2.1734],"d":[38.7223,-9.1393]},{"id":"F3","ready":7200.0,"due":68400.0,"pick":7200.0,"deliv":22048.188366774324,"v":2,"p":[38.7223,-9.1393],"d":[37.3891,-5.9845]},{"id":"F4","ready":10800.0,"due":61200.0,"pick":10800.0,"deliv":29783.188878579356,"v":3,"p":[37.3891,-5.9845],"d":[40.4168,-3.7038]},{"id":"F5","ready":14400.0,"due":46800.0,"pick":31831.980809451794,"deliv":45977.527487958636,"v":4,"p":[40.4168,-3.7038],"d":[39.4699,-0.3763]},{"id":"F6","ready":18000.0,"due":43200.0,"pick":72918.64260091895,"deliv":87279.37942640798,"v":2,"p":[39.4699,-0.3763],"d":[41.3851,2.1734]},{"id":"F7","ready":21600.0,"due":50400.0,"pick":72783.85985924822,"deliv":106151.28918634968,"v":0,"p":[41.3851,2.1734],"d":[43.3614,-5.8593]},{"id":"F8","ready":25200.0,"due":46800.0,"pick":81077.54047910542,"deliv":102951.78548240426,"v":3,"p":[43.3614,-5.8593],"d":[41.6488,-0.8891]},{"id":"F9","ready":28800.0,"due":43200.0,"pick":96418.93598367313,"deliv":109179.59863121886,"v":4,"p":[41.6488,-0.8891],"d":[40.4168,-3.7038]},{"id":"F10","ready":32400.0,"due":79200.0,"pick":119833.8797756073,"deliv":143023.7515745296,"v":1,"p":[40.4168,-3.7038],"d":[38.7223,-9.1393]},{"id":"F11","ready":36000.0,"due":54000.0,"pick":148165.58948826604,"deliv":161331.7737634596,"v":0,"p":[38.7223,-9.1393],"d":[41.1579,-8.6291]},{"id":"F12","ready":39600.0,"due":61200.0,"pick":142255.76981946162,"deliv":157899.9601982526,"v":4,"p":[41.1579,-8.6291],"d":[43.3614,-5.8593]},{"id":"F13","ready":43200.0,"due":61200.0,"pick":166605.00181232224,"deliv":184743.68454648153,"v":3,"p":[43.3614,-5.8593],"d":[40.4168,-3.7038]},{"id":"F14","ready":46800.0,"due":64800.0,"pick":158754.8144701451,"deliv":177238.44574665657,"v":2,"p":[40.4168,-3.7038],"d":[37.3891,-5.9845]},{"id":"F15","ready":50400.0,"due":93600.0,"pick":187319.36700248512,"deliv":222873.81123521426,"v":4,"p":[39.4699,-0.3763],"d":[38.7223,-9.1393]}]},{"title":"MILP","vehicles":[{"id":"V1","color":"#2a78d6","start":[40.4168,-3.7038],"base":[40.4168,-3.7038],"km_per_s":0.020833333333333332,"legs":[[14400.0,14400.0,40.4168,-3.7038,40.4168,-3.7038,0.0],[14400.0,28922.761256600355,40.4168,-3.7038,39.4699,-0.3763,1.0],[28922.761256600355,43445.52251320071,39.4699,-0.3763,40.4168,-3.7038,0.0],[43445.52251320071,56546.469498014325,40.4168,-3.7038,41.6488,-0.8891,0.0],[56546.469498014325,69647.41648282793,41.6488,-0.8891,40.4168,-3.7038,1.0],[69647.41648282793,69647.41648282793,40.4168,-3.7038,40.4168,-3.7038,0.0],[69647.41648282793,69647.41648282793,40.4168,-3.7038,40.4168,-3.7038,0.0],[69647.41648282793,93764.88315370712,40.4168,-3.7038,38.7223,-9.1393,1.0],[93764.88315370712,117882.34982458632,38.7223,-9.1393,40.4168,-3.7038,0.0],[117882.34982458632,117882.34982458632,40.4168,-3.7038,40.4168,-3.7038,0.0],[117882.34982458632,136612.42951811795,40.4168,-3.7038,37.3891,-5.9845,1.0],[136612.42951811795,155342.50921164957,37.3891,-5.9845,40.4168,-3.7038,0.0]]},{"id":"V2","color":"#eb6834","start":[41.3851,2.1734],"base":[41.3851,2.1734],"km_per_s":0.021666666666666667,"legs":[[0.0,23328.160211297505,41.3851,2.1734,40.4168,-3.7038,0.0],[23328.160211297505,46656.32042259501,40.4168,-3.7038,41.3851,2.1734,1.0],[46656.32042259501,46656.32042259501,41.3851,2.1734,41.3851,2.1734,0.0],[46656.32042259501,60648.83322691766,41.3851,2.1734,39.4699,-0.3763,0.0],[60648.83322691766,74641.3460312403,39.4699,-0.3763,41.3851,2.1734,1.0],[74641.3460312403,74641.3460312403,41.3851,2.1734,41.3851,2.1734,0.0],[74641.3460312403,74641.3460312403,41.3851,2.1734,41.3851,2.1734,0.0],[74641.3460312403,106725.41269191478,41.3851,2.1734,43.3614,-5.8593,1.0],[106725.41269191478,138809.47935258926,43.3614,-5.8593,41.3851,2.1734,0.0]]},{"id":"V3","color":"#1baf7a","start":[38.7223,-9.1393],"base":[38.7223,-9.1393],"km_per_s":0.021111111111111112,"legs":[[7200.0,7200.0,38.7223,-9.1393,38.7223,-9.1393,0.0],[7200.0,22048.188366774324,38.7223,-9.1393,37.3891,-5.9845,1.0],[22048.188366774324,36896.37673354865,37.3891,-5.9845,38.7223,-9.1393,0.0],[36896.37673354865,36896.37673354865,38.7223,-9.1393,38.7223,-9.1393,0.0],[36896.37673354865,49889.32174196337,38.7223,-9.1393,41.1579,-8.6291,1.0],[49889.32174196337,62882.2667503781,41.1579,-8.6291,38.7223,-9.1393,0.0],[62882.2667503781,98904.5326177484,38.7223,-9.1393,39.4699,-0.3763,0.0],[98904.5326177484,134926.7984851187,39.4699,-0.3763,38.7223,-9.1393,1.0],[134926.7984851187,134926.7984851187,38.7223,-9.1393,38.7223,-9.1393,0.0]]},{"id":"V4","color":"#eda100","start":[37.3891,-5.9845],"base":[37.3891,-5.9845],"km_per_s":0.020555555555555556,"legs":[[3600.0,43952.66545921737,37.3891,-5.9845,41.3851,2.1734,0.0],[43952.66545921737,92916.49063500226,41.3851,2.1734,38.7223,-9.1393,1.0],[92916.49063500226,108165.98139006778,38.7223,-9.1393,37.3891,-5.9845,0.0],[108165.98139006778,108165.98139006778,37.3891,-5.9845,37.3891,-5.9845,0.0],[108165.98139006778,127149.17026864714,37.3891,-5.9845,40.4168,-3.7038,1.0],[127149.17026864714,146132.3591472265,40.4168,-3.7038,37.3891,-5.9845,0.0]]},{"id":"V5","color":"#e87ba4","start":[43.3614,-5.8593],"base":[43.3614,-5.8593],"km_per_s":0.021388888888888888,"legs":[[25200.0,25200.0,43.3614,-5.8593,43.3614,-5.8593,0.0],[25200.0,46222.001691482,43.3614,-5.8593,41.6488,-0.8891,1.0],[46222.001691482,67244.003382964,41.6488,-0.8891,43.3614,-5.8593,0.0],[67244.003382964,82888.19376175497,43.3614,-5.8593,41.1579,-8.6291,0.0],[82888.19376175497,98532.38414054594,41.1579,-8.6291,43.3614,-5.8593,1.0],[98532.38414054594,98532.38414054594,43.3614,-5.8593,43.3614,-5.8593,0.0],[98532.38414054594,98532.38414054594,43.3614,-5.8593,43.3614,-5.8593,0.0],[98532.38414054594,115964.36494999773,43.3614,-5.8593,40.4168,-3.7038,1.0],[115964.36494999773,133396.34575944953,40.4168,-3.7038,43.3614,-5.8593,0.0]]}],"freights":[{"id":"F1","ready":0.0,"due":54000.0,"pick":23328.160211297505,"deliv":46656.32042259501,"v":1,"p":[40.4168,-3.7038],"d":[41.3851,2.1734]},{"id":"F2","ready":3600.0,"due":82800.0,"pick":43952.66545921737,"deliv":92916.49063500226,"v":3,"p":[41.3851,2.1734],"d":[38.7223,-9.1393]},{"id":"F3","ready":7200.0,"due":68400.0,"pick":7200.0,"deliv":22048.188366774324,"v":2,"p":[38.7223,-9.1393],"d":[37.3891,-5.9845]},{"id":"F4","ready":10800.0,"due":61200.0,"pick":108165.98139006778,"deliv":127149.17026864714,"v":3,"p":[37.3891,-5.9845],"d":[40.4168,-3.7038]},{"id":"F5","ready":14400.0,"due":46800.0,"pick":14400.0,"deliv":28922.761256600355,"v":0,"p":[40.4168,-3.7038],"d":[39.4699,-0.3763]},{"id":"F6","ready":18000.0,"due":43200.0,"pick":60648.83322691766,"deliv":74641.3460312403,"v":1,"p":[39.4699,-0.3763],"d":[41.3851,2.1734]},{"id":"F7","ready":21600.0,"due":50400.0,"pick":74641.3460312403,"deliv":106725.41269191478,"v":1,"p":[41.3851,2.1734],"d":[43.3614,-5.8593]},{"id":"F8","ready":25200.0,"due":46800.0,"pick":25200.0,"deliv":46222.001691482,"v":4,"p":[43.3614,-5.8593],"d":[41.6488,-0.8891]},{"id":"F9","ready":28800.0,"due":43200.0,"pick":56546.469498014325,"deliv":69647.41648282793,"v":0,"p":[41.6488,-0.8891],"d":[40.4168,-3.7038]},{"id":"F10","ready":32400.0,"due":79200.0,"pick":69647.41648282793,"deliv":93764.88315370712,"v":0,"p":[40.4168,-3.7038],"d":[38.7223,-9.1393]},{"id":"F11","ready":36000.0,"due":54000.0,"pick":36896.37673354865,"deliv":49889.32174196337,"v":2,"p":[38.7223,-9.1393],"d":[41.1579,-8.6291]},{"id":"F12","ready":39600.0,"due":61200.0,"pick":82888.19376175497,"deliv":98532.38414054594,"v":4,"p":[41.1579,-8.6291],"d":[43.3614,-5.8593]},{"id":"F13","ready":43200.0,"due":61200.0,"pick":98532.38414054594,"deliv":115964.36494999773,"v":4,"p":[43.3614,-5.8593],"d":[40.4168,-3.7038]},{"id":"F14","ready":46800.0,"due":64800.0,"pick":117882.34982458632,"deliv":136612.42951811795,"v":0,"p":[40.4168,-3.7038],"d":[37.3891,-5.9845]},{"id":"F15","ready":50400.0,"due":93600.0,"pick":98904.5326177484,"deliv":134926.7984851187,"v":2,"p":[39.4699,-0.3763],"d":[38.7223,-9.1393]}]}]};
+const GOOD = "#0ca30c", LATE = "#d03b3b", WAIT = "#52514e";
+document.getElementById("title").textContent = D.title;
+if (new URLSearchParams(location.search).has("capture")) document.body.classList.add("capture");
+
+function hhmm(s) {
+  const h = s / 3600, d = Math.floor(h / 24), r = h - 24 * d;
+  const hh = Math.floor(r), mm = Math.floor((r - hh) * 60);
+  return `Day ${d + 1} · ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function position(v, t) {
+  let last = v.start;
+  for (const L of v.legs) {
+    if (t < L[0]) return {p: last, loaded: false};
+    if (t <= L[1]) {
+      const f = L[1] > L[0] ? (t - L[0]) / (L[1] - L[0]) : 1;
+      return {p: [L[2] + f * (L[4] - L[2]), L[3] + f * (L[5] - L[3])], loaded: L[6] === 1};
+    }
+    last = [L[4], L[5]];
+  }
+  return {p: last, loaded: false};
+}
+
+function hav(a, b) {
+  const r = Math.PI / 180, dφ = (b[0] - a[0]) * r, dλ = (b[1] - a[1]) * r;
+  const h = Math.sin(dφ / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dλ / 2) ** 2;
+  return 2 * 6371 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function frame(t) {
+  const traces = [], annotations = [];
+  const n = D.runs.length;
+  D.runs.forEach((run, k) => {
+    const geo = k === 0 ? "geo" : "geo" + (k + 1);
+    let km = 0;
+    // routes driven so far, one trace per vehicle
+    run.vehicles.forEach(v => {
+      const lat = [], lon = [];
+      for (const L of v.legs) {
+        if (t <= L[0]) break;
+        const f = Math.min(1, (t - L[0]) / Math.max(L[1] - L[0], 1e-9));
+        const end = [L[2] + f * (L[4] - L[2]), L[3] + f * (L[5] - L[3])];
+        lat.push(L[2], end[0], null); lon.push(L[3], end[1], null);
+        km += hav([L[2], L[3]], end);
+      }
+      traces.push({type: "scattergeo", geo, mode: "lines", lat, lon, hoverinfo: "skip",
+        line: {color: v.color, width: 1.5}, opacity: 0.55, showlegend: false});
+    });
+    // freights
+    const wl = [], wn = [], wc = [], dl = [], dn = [], dc = [], txt = [], dtxt = [];
+    let delivered = 0, late = 0, lateH = 0;
+    for (const f of run.freights) {
+      if (t < f.ready) continue;
+      if (f.deliv !== null && t >= f.deliv) {
+        dl.push(f.d[0]); dn.push(f.d[1]); dc.push(f.deliv > f.due ? LATE : GOOD);
+        dtxt.push(`${f.id}: delivered ${f.deliv > f.due ? "late" : "on time"}`);
+        delivered++; if (f.deliv > f.due) { late++; lateH += (f.deliv - f.due) / 3600; }
+      } else {
+        if (t > f.due) lateH += (t - f.due) / 3600;
+        if (f.pick === null || t < f.pick) {
+          wl.push(f.p[0]); wn.push(f.p[1]); wc.push(t > f.due ? LATE : WAIT);
+          txt.push(`${f.id}: waiting`);
+        }
+      }
+    }
+    traces.push({type: "scattergeo", geo, mode: "markers", lat: wl, lon: wn, text: txt, hoverinfo: "text", showlegend: false,
+      marker: {symbol: "circle-open", size: 11, color: wc, line: {width: 2.5}}});
+    traces.push({type: "scattergeo", geo, mode: "markers", lat: dl, lon: dn, text: dtxt, hoverinfo: "text", showlegend: false,
+      marker: {symbol: "square", size: 10, color: dc, line: {color: "#fcfcfb", width: 1.5}}});
+    // bases and vehicles
+    traces.push({type: "scattergeo", geo, mode: "markers", lat: run.vehicles.map(v => v.base[0]), lon: run.vehicles.map(v => v.base[1]),
+      hoverinfo: "skip", showlegend: false,
+      marker: {symbol: "diamond-open", size: 12, color: run.vehicles.map(v => v.color), line: {width: 2}}});
+    const pos = run.vehicles.map(v => position(v, t));
+    traces.push({type: "scattergeo", geo, mode: "markers", lat: pos.map(q => q.p[0]), lon: pos.map(q => q.p[1]),
+      text: run.vehicles.map((v, i) => `${v.id}${pos[i].loaded ? " (loaded)" : ""}`), hoverinfo: "text", showlegend: false,
+      marker: {size: pos.map(q => q.loaded ? 17 : 11), color: run.vehicles.map(v => v.color), line: {color: "#fcfcfb", width: 2}}});
+    const x0 = k / n, x1 = (k + 1) / n;
+    annotations.push({text: `<b>${run.title}</b>`, x: (x0 + x1) / 2, y: 1.0, xref: "paper", yref: "paper",
+      xanchor: "center", yanchor: "bottom", yshift: 22, showarrow: false, font: {size: 15, color: "#0b0b0b"}});
+    annotations.push({text: `${Math.round(km).toLocaleString("en")} km · delivered ${delivered}/${run.freights.length} · ` +
+      `<span style="color:${LATE}">${late} late · ${lateH.toFixed(0)} h overdue</span>`,
+      x: (x0 + x1) / 2, y: 1.0, xref: "paper", yref: "paper", xanchor: "center", yanchor: "bottom", yshift: 2, showarrow: false,
+      font: {size: 13, color: "#52514e"}});
+  });
+  return {traces, annotations};
+}
+
+const geoBase = {
+  projection: {type: "mercator"}, resolution: 50, fitbounds: false,
+  lataxis: {range: D.lat}, lonaxis: {range: D.lon},
+  showland: true, landcolor: "#f3f1ec", showcountries: true, countrycolor: "#b8b2a7",
+  showocean: true, oceancolor: "#dde8f0", showlakes: false, showframe: false, bgcolor: "rgba(0,0,0,0)",
+};
+function layout(annotations) {
+  const L = {margin: {l: 8, r: 8, t: 58, b: 8}, paper_bgcolor: "#fcfcfb", annotations, showlegend: false};
+  D.runs.forEach((_, k) => {
+    const n = D.runs.length, gap = 0.01;
+    L[k === 0 ? "geo" : "geo" + (k + 1)] = {...geoBase, domain: {x: [k / n + gap, (k + 1) / n - gap], y: [0, 1]}};
+  });
+  return L;
+}
+
+let t = 0, playing = true, last = null, drawn = null;
+const clock = document.getElementById("clock"), slider = document.getElementById("slider");
+const HOURS_PER_SECOND = Math.max(2, D.tmax / 3600 / 20);   // whole replay in about 20 s
+document.getElementById("speed").textContent = `${HOURS_PER_SECOND.toFixed(0)} h per second`;
+
+window.renderAt = function (ts) {
+  t = Math.max(0, Math.min(D.tmax, ts));
+  const f = frame(t);
+  clock.textContent = hhmm(t);
+  slider.value = Math.round(1000 * t / D.tmax);
+  const p = drawn ? Plotly.react("map", f.traces, layout(f.annotations)) :
+                    Plotly.newPlot("map", f.traces, layout(f.annotations), {displayModeBar: false, responsive: true});
+  drawn = true;
+  return p;
+};
+
+function tick(now) {
+  if (playing && last !== null) {
+    t += (now - last) / 1000 * HOURS_PER_SECOND * 3600;
+    if (t > D.tmax) { t = D.tmax; playing = false; document.getElementById("play").textContent = "Replay"; }
+    window.renderAt(t);
+  }
+  last = now;
+  requestAnimationFrame(tick);
+}
+
+document.getElementById("play").onclick = () => {
+  if (!playing && t >= D.tmax) t = 0;
+  playing = !playing;
+  document.getElementById("play").textContent = playing ? "Pause" : "Play";
+};
+slider.oninput = () => { playing = false; document.getElementById("play").textContent = "Play"; window.renderAt(slider.value / 1000 * D.tmax); };
+
+window.renderAt(0).then(() => {
+  window.replayReady = true;
+  if (!document.body.classList.contains("capture")) requestAnimationFrame(tick);
+});
+</script>
+</body>
+</html>

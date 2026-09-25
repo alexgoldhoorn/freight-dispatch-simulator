@@ -6,11 +6,12 @@ A Julia showcase of three ways to dispatch freight to a vehicle fleet: **greedy
 online rules**, **local search** and an **exact MILP**. All three are evaluated in
 **the same discrete-event simulation**, so their numbers can be compared directly.
 
-| Greedy (Distance rule) | MILP |
-|---|---|
-| ![Greedy routes on the Iberia dataset](docs/assets/iberia_distance.png) | ![MILP routes on the Iberia dataset](docs/assets/iberia_milp.png) |
+![Animated replay: greedy vs MILP on the Iberia dataset](docs/assets/replay_iberia.gif)
 
-*Iberia dataset, 15 freights, 5 vehicles. On the same objective (km + 100 × hours late), the MILP solution is 43 % cheaper than the greedy Distance rule's.*
+*The same 15 freights and 5 trucks, dispatched by a greedy rule (left) and by the MILP (right), on a shared clock.
+Open circles are freights waiting for pickup (red once their deadline has passed); squares are deliveries, green if on time and red if late.
+The MILP drives 33 % fewer km and has half the overdue hours: 43 % cheaper on the shared objective (km + 100 × hours late).
+Interactive version with play/pause and a time slider: [`docs/replay/iberia.html`](docs/replay/iberia.html) (download and open in a browser).*
 
 ## What it does
 
@@ -31,6 +32,30 @@ online rules**, **local search** and an **exact MILP**. All three are evaluated 
 
 The model, the rules and the MILP formulation are in
 [SOLUTION_APPROACHES.md](SOLUTION_APPROACHES.md).
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    data[("freights.csv<br/>vehicles.csv")] --> inst["Instance"]
+    inst --> greedy["Greedy rules<br/>decide online, at release"]
+    inst --> ls["Local search<br/>relocate + swap"]
+    inst --> milp["MILP<br/>JuMP + HiGHS"]
+    ls -. scores moves with .-> plan["Analytic evaluator<br/>same rules, O(n)"]
+    greedy -- "strategy" --> disp
+    ls -- "assignment" --> disp
+    milp -- "assignment" --> disp
+    subgraph sim ["Discrete-event simulation (ConcurrentSim)"]
+        disp["Dispatcher process<br/>releases freights"] -- "FIFO queue per vehicle" --> veh["Vehicle processes<br/>pickup → delivery → base"]
+    end
+    veh --> res["DispatchResult<br/>timeline · KPIs · one objective"]
+    plan -. "tests: identical KPIs" .- res
+    res --> vis["Route maps · timelines · replay"]
+```
+
+Every method ends in the same simulation, so every number in this README comes
+from the same evaluator. The MILP models the simulation's rules exactly, and the
+tests check that its objective matches the replay.
 
 ## Quick start
 
@@ -95,6 +120,25 @@ All greedy rules and local search run in under 5 ms on these datasets.
 
 ![Solve time vs. instance size](docs/assets/scalability.svg)
 
+Why the MILP wins on `iberia`, trip by trip (hover a trip for details):
+
+![Vehicle timelines, greedy vs MILP](docs/assets/timeline_iberia.svg)
+
+The greedy rule gives each freight to the idle truck with the shortest trip,
+without looking ahead. Trucks then make long empty runs (light blue) and are
+still busy when later freights arrive. The MILP plans all 15 freights at once:
+less empty driving, and all trucks are back after 43 h instead of 70 h.
+
+<details>
+<summary>Static route maps (greedy vs MILP)</summary>
+
+| Greedy (Distance rule) | MILP |
+|---|---|
+| ![Greedy routes on the Iberia dataset](docs/assets/iberia_distance.png) | ![MILP routes on the Iberia dataset](docs/assets/iberia_milp.png) |
+
+Interactive versions for three datasets are in [`docs/maps/`](docs/maps/).
+</details>
+
 Main points:
 
 - No single greedy rule wins everywhere. *OverallCost* considers queues and is best
@@ -156,8 +200,10 @@ src/
   MILPOptimizer.jl              MILP (JuMP + HiGHS)
   experiments.jl                compare_methods, generate_instance
   MapVisualization.jl           interactive HTML route maps (plotly.js)
-scripts/                        CLI, benchmark, example maps
-docs/                           benchmark results, maps, screenshots
+  Timeline.jl                   vehicle timeline (Gantt) SVG
+  Replay.jl                     animated side-by-side replay (HTML)
+scripts/                        CLI, benchmark, visuals, GIF capture
+docs/                           benchmark results, maps, replay, charts
 examples.ipynb                  walkthrough notebook
 ```
 
@@ -166,7 +212,9 @@ examples.ipynb                  walkthrough notebook
 ```bash
 julia --project=. -e 'using Pkg; Pkg.test()'       # tests (CI runs Julia 1.10 and latest)
 julia --project=. scripts/benchmark.jl            # regenerate docs/BENCHMARK.md
-julia --project=. scripts/render_maps.jl          # regenerate docs/maps/*.html
+julia --project=. scripts/render_visuals.jl       # regenerate maps, timeline and replay page in docs/
+node scripts/capture/capture_replay.js docs/replay/iberia.html frames/ && \
+  python3 scripts/capture/make_gif.py frames/ docs/assets/replay_iberia.gif   # README GIF
 ```
 
 Formatting: `.JuliaFormatter.toml` (Blue style).

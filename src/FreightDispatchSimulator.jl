@@ -35,7 +35,7 @@ export DispatchStrategy, FCFSStrategy, CostStrategy, DistanceStrategy, OverallCo
 export simulate, evaluate_assignment, evaluate_plan, Simulation
 export local_search_optimize, optimize_dispatch
 export compare_methods, generate_instance
-export generate_route_map
+export generate_route_map, generate_timeline, generate_replay
 
 include("distances.jl")
 include("types.jl")
@@ -46,5 +46,7 @@ include("LocalSearch.jl")
 include("MILPOptimizer.jl")
 include("experiments.jl")
 include("MapVisualization.jl")
+include("Timeline.jl")
+include("Replay.jl")
 
 end # module

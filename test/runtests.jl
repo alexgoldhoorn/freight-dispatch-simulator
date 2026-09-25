@@ -167,6 +167,22 @@ read_dataset(name) = (CSV.read(joinpath(DATA, name, "freights.csv"), DataFrame),
         @test generate_route_map(fr, v, path) == path
     end
 
+    @testset "timeline and replay" begin
+        inst = load_instance(joinpath(DATA, "eu_urban"))
+        a, b = simulate(inst, FCFSStrategy()), simulate(inst, OverallCostStrategy())
+        svg = tempname() * ".svg"
+        generate_timeline([a, b], inst, svg)
+        s = read(svg, String)
+        @test startswith(s, "<svg") && endswith(strip(s), "</svg>")
+        @test count("<title>", s) == a.kpis.n_served + b.kpis.n_served   # one tooltip per trip
+        @test occursin("prefers-color-scheme: dark", s)
+        html = tempname() * ".html"
+        generate_replay([a, b], inst, html; title = "test")
+        h = read(html, String)
+        @test occursin("window.renderAt", h) && occursin("\"runs\"", h)
+        @test !occursin("__DATA__", h)
+    end
+
     @testset "deprecated 4-argument Simulation still works" begin
         f, v = read_dataset("test0")
         fr, va = @test_deprecated Simulation(f, v, 3600.0, FCFSStrategy())
