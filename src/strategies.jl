@@ -1,221 +1,124 @@
-# Dispatch strategy definitions and implementations
+# Online dispatch strategies (greedy heuristics)
+#
+# At the release time of each freight the dispatcher asks the strategy for a
+# vehicle. Only vehicles that can carry the weight are candidates. A vehicle that
+# is still busy can be chosen: the freight then waits in that vehicle's queue.
+# Ties are always broken by vehicle order in the input, so runs are deterministic.
 
 """
     DispatchStrategy
 
-Abstract base type for all dispatch strategies. Each strategy determines how freights
-are assigned to vehicles based on different optimization criteria.
+Abstract type for online dispatch rules. Implement
+`choose_vehicle(strategy, inst, fleet, freight_index, now_s)` returning a vehicle
+index or `nothing` (freight unserved).
 """
 abstract type DispatchStrategy end
 
 """
-    FCFSStrategy <: DispatchStrategy
+    FCFSStrategy()
 
-First Come, First Served strategy - assigns freights to the first available vehicle
-with sufficient capacity. Simple and fair but may not optimize for distance or time.
+First come, first served: the first idle vehicle in input order; if all are busy,
+the vehicle that becomes free first.
 """
 struct FCFSStrategy <: DispatchStrategy end
 
 """
-    CostStrategy <: DispatchStrategy
+    CostStrategy()
 
-Cost-based strategy - assigns freight to the vehicle with the lowest cost to reach
-the pickup location (closest vehicle). Minimizes empty miles but doesn't consider
-delivery distance or return-to-base cost.
+Nearest idle vehicle to the pickup (minimises empty kilometres); if all are busy,
+the vehicle that becomes free first.
 """
 struct CostStrategy <: DispatchStrategy end
 
 """
-    DistanceStrategy <: DispatchStrategy
+    DistanceStrategy()
 
-Distance-based strategy - minimizes total distance for the complete route
-(pickup + delivery + return to base). Best for reducing total mileage and fuel costs.
+Idle vehicle with the shortest full trip (to pickup + delivery + back to base);
+if all are busy, the vehicle that becomes free first.
 """
 struct DistanceStrategy <: DispatchStrategy end
 
 """
-    OverallCostStrategy <: DispatchStrategy
+    OverallCostStrategy()
 
-Overall cost strategy - minimizes total time cost for the entire route, accounting
-for vehicle speed. Best for time-sensitive deliveries and maximizing throughput.
+Vehicle with the earliest estimated delivery time, counting queueing behind
+earlier assignments and vehicle speed. Busy vehicles compete with idle ones.
 """
 struct OverallCostStrategy <: DispatchStrategy end
 
-# Strategy-specific freight selection
+"""
+    FixedAssignment(assignment::Dict{String,<:Union{String,Nothing}})
+
+Replays a given assignment (freight id => vehicle id, `nothing` = unserved).
+Used to evaluate optimizer output in the same simulation as the greedy rules.
+"""
+struct FixedAssignment <: DispatchStrategy
+    assignment::Dict{String,Union{String,Nothing}}
+end
+
+strategy_name(::FCFSStrategy) = "FCFS"
+strategy_name(::CostStrategy) = "Cost"
+strategy_name(::DistanceStrategy) = "Distance"
+strategy_name(::OverallCostStrategy) = "OverallCost"
+strategy_name(::FixedAssignment) = "FixedAssignment"
 
 """
-    select_freights(strategy::DispatchStrategy, freight_objects::Vector{Freight}) -> Vector{Freight}
+    GREEDY_STRATEGIES
 
-Sort freights to determine processing order. For greedy heuristics, all strategies
-process freights in pickup time order. The optimization happens in vehicle selection
-(find_best_vehicle), not in freight ordering.
-
-Note: True optimization would require batch assignment (e.g., MILP) rather than
-greedy sequential processing.
+Name => strategy for all built-in greedy rules.
 """
-function select_freights(strategy::FCFSStrategy, freight_objects::Vector{Freight})
-    return sort(freight_objects; by = f -> f.pickup_ts)
-end
+const GREEDY_STRATEGIES = [
+    "FCFS" => FCFSStrategy(),
+    "Cost" => CostStrategy(),
+    "Distance" => DistanceStrategy(),
+    "OverallCost" => OverallCostStrategy(),
+]
 
-function select_freights(strategy::CostStrategy, freight_objects::Vector{Freight})
-    # Greedy heuristic: process in pickup time order, optimize vehicle selection
-    return sort(freight_objects; by = f -> f.pickup_ts)
-end
-
-function select_freights(strategy::DistanceStrategy, freight_objects::Vector{Freight})
-    # Greedy heuristic: process in pickup time order, optimize vehicle selection
-    return sort(freight_objects; by = f -> f.pickup_ts)
-end
-
-function select_freights(strategy::OverallCostStrategy, freight_objects::Vector{Freight})
-    # Greedy heuristic: process in pickup time order, optimize vehicle selection
-    return sort(freight_objects; by = f -> f.pickup_ts)
-end
-
-# Strategy-specific vehicle selection
-
-"""
-    find_best_vehicle(strategy::DispatchStrategy, vehicle_info, vehicle_inbox, freight, current_time)
-
-Find the best vehicle for a freight based on the dispatch strategy.
-
-# Returns
-- Vehicle ID string if a suitable vehicle is found, `nothing` otherwise
-"""
-function find_best_vehicle(
-    strategy::FCFSStrategy,
-    vehicle_info::Dict{String,VehicleInfo},
-    vehicle_inbox::Dict{String,Store{Freight}},
-    freight::Freight,
-    current_time::Float64,
-)
-    for (vehicle_id, inbox) in vehicle_inbox
-        vehicle = vehicle_info[vehicle_id]
-        if vehicle.capacity_kg >= freight.weight_kg && vehicle.available_at <= current_time
-            return vehicle_id
+# Pick argmin of `key(j)` over candidate vehicles, ties -> lowest index.
+function _argmin(key, candidates)
+    best, best_key = nothing, nothing
+    for j in candidates
+        k = key(j)
+        if best === nothing || k < best_key
+            best, best_key = j, k
         end
     end
-    return nothing
+    return best
 end
 
-function find_best_vehicle(
-    strategy::CostStrategy,
-    vehicle_info::Dict{String,VehicleInfo},
-    vehicle_inbox::Dict{String,Store{Freight}},
-    freight::Freight,
-    current_time::Float64,
-)
-    best_vehicle = nothing
-    best_cost = Inf
+_candidates(inst, f) = [j for (j, v) in enumerate(inst.vehicles) if can_carry(v, f)]
 
-    for (vehicle_id, inbox) in vehicle_inbox
-        vehicle = vehicle_info[vehicle_id]
-        if vehicle.capacity_kg >= freight.weight_kg && vehicle.available_at <= current_time
-            # Calculate cost as distance to pickup location
-            cost = haversine(
-                vehicle.current_lat,
-                vehicle.current_lon,
-                freight.pickup_lat,
-                freight.pickup_lon,
-            )
-            if cost < best_cost
-                best_cost = cost
-                best_vehicle = vehicle_id
-            end
-        end
-    end
-
-    return best_vehicle
+function _idle_or_earliest(inst, fleet, f, now_s, idle_key)
+    cands = _candidates(inst, f)
+    isempty(cands) && return nothing
+    idle = [j for j in cands if fleet[j].free_at <= now_s]
+    isempty(idle) || return _argmin(idle_key, idle)
+    return _argmin(j -> fleet[j].free_at, cands)
 end
 
-function find_best_vehicle(
-    strategy::DistanceStrategy,
-    vehicle_info::Dict{String,VehicleInfo},
-    vehicle_inbox::Dict{String,Store{Freight}},
-    freight::Freight,
-    current_time::Float64,
-)
-    best_vehicle = nothing
-    best_distance = Inf
+choose_vehicle(::FCFSStrategy, inst, fleet, i, now_s) =
+    _idle_or_earliest(inst, fleet, inst.freights[i], now_s, j -> j)
 
-    for (vehicle_id, inbox) in vehicle_inbox
-        vehicle = vehicle_info[vehicle_id]
-        if vehicle.capacity_kg >= freight.weight_kg && vehicle.available_at <= current_time
-            # Calculate total distance: pickup + delivery + return to base
-            pickup_distance = haversine(
-                vehicle.current_lat,
-                vehicle.current_lon,
-                freight.pickup_lat,
-                freight.pickup_lon,
-            )
-            delivery_distance = haversine(
-                freight.pickup_lat,
-                freight.pickup_lon,
-                freight.delivery_lat,
-                freight.delivery_lon,
-            )
-            return_distance = haversine(
-                freight.delivery_lat,
-                freight.delivery_lon,
-                vehicle.base_lat,
-                vehicle.base_lon,
-            )
-            total_distance = pickup_distance + delivery_distance + return_distance
-
-            if total_distance < best_distance
-                best_distance = total_distance
-                best_vehicle = vehicle_id
-            end
-        end
-    end
-
-    return best_vehicle
+function choose_vehicle(::CostStrategy, inst, fleet, i, now_s)
+    f = inst.freights[i]
+    return _idle_or_earliest(inst, fleet, f, now_s, j -> haversine(fleet[j].lat, fleet[j].lon, f.pickup_lat, f.pickup_lon))
 end
 
-function find_best_vehicle(
-    strategy::OverallCostStrategy,
-    vehicle_info::Dict{String,VehicleInfo},
-    vehicle_inbox::Dict{String,Store{Freight}},
-    freight::Freight,
-    current_time::Float64,
-)
-    best_vehicle = nothing
-    best_time_cost = Inf
+function choose_vehicle(::DistanceStrategy, inst, fleet, i, now_s)
+    f = inst.freights[i]
+    return _idle_or_earliest(inst, fleet, f, now_s, j -> total_km(plan_trip(inst.vehicles[j], fleet[j], f)[2]))
+end
 
-    for (vehicle_id, inbox) in vehicle_inbox
-        vehicle = vehicle_info[vehicle_id]
-        if vehicle.capacity_kg >= freight.weight_kg && vehicle.available_at <= current_time
-            # Calculate time cost: total travel time
-            pickup_distance = haversine(
-                vehicle.current_lat,
-                vehicle.current_lon,
-                freight.pickup_lat,
-                freight.pickup_lon,
-            )
-            delivery_distance = haversine(
-                freight.pickup_lat,
-                freight.pickup_lon,
-                freight.delivery_lat,
-                freight.delivery_lon,
-            )
-            return_distance = haversine(
-                freight.delivery_lat,
-                freight.delivery_lon,
-                vehicle.base_lat,
-                vehicle.base_lon,
-            )
-
-            pickup_time = pickup_distance / vehicle.speed_km_per_hour * 3600
-            delivery_time = delivery_distance / vehicle.speed_km_per_hour * 3600
-            return_time = return_distance / vehicle.speed_km_per_hour * 3600
-            total_time = pickup_time + delivery_time + return_time
-
-            if total_time < best_time_cost
-                best_time_cost = total_time
-                best_vehicle = vehicle_id
-            end
-        end
+function choose_vehicle(::OverallCostStrategy, inst, fleet, i, now_s)
+    f = inst.freights[i]
+    return _argmin(_candidates(inst, f)) do j
+        start, trip = plan_trip(inst.vehicles[j], fleet[j], f)
+        start + until_delivery_s(trip)
     end
+end
 
-    return best_vehicle
+function choose_vehicle(s::FixedAssignment, inst, fleet, i, now_s)
+    vid = get(s.assignment, inst.freights[i].id, nothing)
+    vid === nothing && return nothing
+    return findfirst(v -> v.id == vid, inst.vehicles)
 end

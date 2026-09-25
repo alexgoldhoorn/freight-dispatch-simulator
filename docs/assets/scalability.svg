@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" height="400" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<title id="t">Solve time versus number of freights</title>
+<desc id="d">Mean solve time on generated instances, log scale. Greedy stays in microseconds, local search in milliseconds, the MILP grows steeply and reaches its 60 s time limit on the largest instances. Data in docs/benchmark_scalability.csv.</desc>
+<style>
+  .bg{fill:#fcfcfb} .grid{stroke:#e1e0d9;stroke-width:1} .axis{stroke:#c3c2b7;stroke-width:1}
+  .ink{fill:#0b0b0b} .ink2{fill:#52514e} .muted{fill:#898781}
+  .s1{stroke:#2a78d6;fill:#2a78d6} .s2{stroke:#eb6834;fill:#eb6834} .s3{stroke:#1baf7a;fill:#1baf7a}
+  .ring{stroke:#fcfcfb} .limit{stroke:#898781;stroke-dasharray:4 4;stroke-width:1}
+  @media (prefers-color-scheme: dark) {
+    .bg{fill:#1a1a19} .grid{stroke:#2c2c2a} .axis{stroke:#383835}
+    .ink{fill:#ffffff} .ink2{fill:#c3c2b7}
+    .s1{stroke:#3987e5;fill:#3987e5} .s2{stroke:#d95926;fill:#d95926} .s3{stroke:#199e70;fill:#199e70}
+    .ring{stroke:#1a1a19}
+  }
+</style>
+<rect class="bg" width="720" height="400" rx="8"/>
+<text class="ink" x="64" y="24" font-size="15" font-weight="600">Solve time vs. instance size</text>
+<text class="ink2" x="64" y="40" font-size="12">Mean over 3 generated instances per size · log scale</text>
+<line class="grid" x1="64" x2="600" y1="348.0" y2="348.0"/>
+<text class="muted" x="56" y="352.0" font-size="11" text-anchor="end">10 µs</text>
+<line class="grid" x1="64" x2="600" y1="308.85714285714283" y2="308.85714285714283"/>
+<text class="muted" x="56" y="312.85714285714283" font-size="11" text-anchor="end">100 µs</text>
+<line class="grid" x1="64" x2="600" y1="269.7142857142857" y2="269.7142857142857"/>
+<text class="muted" x="56" y="273.7142857142857" font-size="11" text-anchor="end">1 ms</text>
+<line class="grid" x1="64" x2="600" y1="230.57142857142856" y2="230.57142857142856"/>
+<text class="muted" x="56" y="234.57142857142856" font-size="11" text-anchor="end">10 ms</text>
+<line class="grid" x1="64" x2="600" y1="191.42857142857142" y2="191.42857142857142"/>
+<text class="muted" x="56" y="195.42857142857142" font-size="11" text-anchor="end">100 ms</text>
+<line class="grid" x1="64" x2="600" y1="152.28571428571428" y2="152.28571428571428"/>
+<text class="muted" x="56" y="156.28571428571428" font-size="11" text-anchor="end">1 s</text>
+<line class="grid" x1="64" x2="600" y1="113.14285714285714" y2="113.14285714285714"/>
+<text class="muted" x="56" y="117.14285714285714" font-size="11" text-anchor="end">10 s</text>
+<line class="grid" x1="64" x2="600" y1="74.0" y2="74.0"/>
+<text class="muted" x="56" y="78.0" font-size="11" text-anchor="end">100 s</text>
+<line class="axis" x1="64" x2="600" y1="348" y2="348"/>
+<text class="muted" x="103.21951219512195" y="366" font-size="11" text-anchor="middle">5</text>
+<text class="muted" x="168.58536585365854" y="366" font-size="11" text-anchor="middle">10</text>
+<text class="muted" x="233.95121951219514" y="366" font-size="11" text-anchor="middle">15</text>
+<text class="muted" x="299.3170731707317" y="366" font-size="11" text-anchor="middle">20</text>
+<text class="muted" x="430.0487804878049" y="366" font-size="11" text-anchor="middle">30</text>
+<text class="muted" x="560.780487804878" y="366" font-size="11" text-anchor="middle">40</text>
+<text class="ink2" x="332.0" y="390" font-size="12" text-anchor="middle">Freights (vehicles = freights ÷ 4, min 2)</text>
+<line class="limit" x1="64" x2="560.780487804878" y1="82.68379391355452" y2="82.68379391355452"/>
+<text class="muted" x="68" y="77.68379391355452" font-size="11">MILP time limit (60 s)</text>
+<polyline class="s1" style="fill:none" stroke-width="2" stroke-linejoin="round" points="103.21951219512195,301.77131618225735 168.58536585365854,300.551635244962 233.95121951219514,295.5599451269847 299.3170731707317,294.1664902181541 430.0487804878049,283.23850651948544 560.780487804878,279.88116643861554"/>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="103.21951219512195" cy="301.77131618225735" r="4.5"/></g><title>Best greedy rule, 5 freights: 152.0 µs</title></g>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="168.58536585365854" cy="300.551635244962" r="4.5"/></g><title>Best greedy rule, 10 freights: 163.0 µs</title></g>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="233.95121951219514" cy="295.5599451269847" r="4.5"/></g><title>Best greedy rule, 15 freights: 219.0 µs</title></g>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="299.3170731707317" cy="294.1664902181541" r="4.5"/></g><title>Best greedy rule, 20 freights: 237.0 µs</title></g>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="430.0487804878049" cy="283.23850651948544" r="4.5"/></g><title>Best greedy rule, 30 freights: 451.0 µs</title></g>
+<g class="s1"><g class="ring" stroke-width="2"><circle cx="560.780487804878" cy="279.88116643861554" r="4.5"/></g><title>Best greedy rule, 40 freights: 550.0 µs</title></g>
+<polyline class="s2" style="fill:none" stroke-width="2" stroke-linejoin="round" points="103.21951219512195,301.0819927884102 168.58536585365854,299.243947926068 233.95121951219514,278.27635714438185 299.3170731707317,260.06352614115616 430.0487804878049,229.43934860968344 560.780487804878,200.57982435049433"/>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="99.21951219512195" y="297.0819927884102" width="8" height="8" rx="1"/></g><title>Local search, 5 freights: 158.0 µs</title></g>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="164.58536585365854" y="295.243947926068" width="8" height="8" rx="1"/></g><title>Local search, 10 freights: 176.0 µs</title></g>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="229.95121951219514" y="274.27635714438185" width="8" height="8" rx="1"/></g><title>Local search, 15 freights: 604.0 µs</title></g>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="295.3170731707317" y="256.06352614115616" width="8" height="8" rx="1"/></g><title>Local search, 20 freights: 1.8 ms</title></g>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="426.0487804878049" y="225.43934860968344" width="8" height="8" rx="1"/></g><title>Local search, 30 freights: 10.7 ms</title></g>
+<g class="s2"><g class="ring" stroke-width="2"><rect x="556.780487804878" y="196.57982435049433" width="8" height="8" rx="1"/></g><title>Local search, 40 freights: 58.4 ms</title></g>
+<polyline class="s3" style="fill:none" stroke-width="2" stroke-linejoin="round" points="103.21951219512195,241.95499803050086 168.58536585365854,212.91671648792698 233.95121951219514,116.9058689293656 299.3170731707317,82.68013617913374 430.0487804878049,82.67795444917166 560.780487804878,82.66503287638913"/>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 103.21951219512195 236.45499803050086 L 108.71951219512195 241.95499803050086 L 103.21951219512195 247.45499803050086 L 97.71951219512195 241.95499803050086 Z"/></g><title>MILP, 5 freights: 5.1 ms · optimal 3/3</title></g>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 168.58536585365854 207.41671648792698 L 174.08536585365854 212.91671648792698 L 168.58536585365854 218.41671648792698 L 163.08536585365854 212.91671648792698 Z"/></g><title>MILP, 10 freights: 28.3 ms · optimal 3/3</title></g>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 233.95121951219514 111.4058689293656 L 239.45121951219514 116.9058689293656 L 233.95121951219514 122.4058689293656 L 228.45121951219514 116.9058689293656 Z"/></g><title>MILP, 15 freights: 8.0 s · optimal 3/3</title></g>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 299.3170731707317 77.18013617913374 L 304.8170731707317 82.68013617913374 L 299.3170731707317 88.18013617913374 L 293.8170731707317 82.68013617913374 Z"/></g><title>MILP, 20 freights: 60.0 s · optimal 0/3</title></g>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 430.0487804878049 77.17795444917166 L 435.5487804878049 82.67795444917166 L 430.0487804878049 88.17795444917166 L 424.5487804878049 82.67795444917166 Z"/></g><title>MILP, 30 freights: 60.0 s · optimal 0/3</title></g>
+<g class="s3"><g class="ring" stroke-width="2"><path d="M 560.780487804878 77.16503287638913 L 566.280487804878 82.66503287638913 L 560.780487804878 88.16503287638913 L 555.280487804878 82.66503287638913 Z"/></g><title>MILP, 40 freights: 60.1 s · optimal 0/3</title></g>
+<text class="ink2" x="572.780487804878" y="86.66503287638913" font-size="12">MILP</text>
+<text class="ink2" x="572.780487804878" y="204.57982435049433" font-size="12">Local search</text>
+<text class="ink2" x="572.780487804878" y="283.88116643861554" font-size="12">Best greedy rule</text>
+<line class="s1" x1="64" x2="82" y1="58" y2="58" stroke-width="2"/>
+<text class="ink2" x="88" y="62" font-size="12">Best greedy rule</text>
+<line class="s2" x1="214" x2="232" y1="58" y2="58" stroke-width="2"/>
+<text class="ink2" x="238" y="62" font-size="12">Local search</text>
+<line class="s3" x1="364" x2="382" y1="58" y2="58" stroke-width="2"/>
+<text class="ink2" x="388" y="62" font-size="12">MILP</text>
+</svg>
