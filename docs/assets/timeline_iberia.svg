@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 492" width="960" height="492" role="img" aria-labelledby="tt td" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<title id="tt">Iberia: the same 15 freights, two plans</title>
+<desc id="td">One row per vehicle. Light segments: driving empty to pickup and back to base; dark segments: carrying a freight that arrives on time; red segments: carrying a freight that arrives after its deadline.</desc>
+<style>
+  .bg{fill:#fcfcfb} .grid{stroke:#e1e0d9;stroke-width:1} .axis{stroke:#c3c2b7;stroke-width:1}
+  .ink{fill:#0b0b0b} .ink2{fill:#52514e} .muted{fill:#898781}
+  .empty{fill:#86b6ef} .loaded{fill:#2a78d6} .late{fill:#d03b3b} .due{stroke:#52514e;stroke-width:1.5}
+  .gap{stroke:#fcfcfb;stroke-width:2} .band{fill:#f3f2ee}
+  @media (prefers-color-scheme: dark) {
+    .bg{fill:#1a1a19} .grid{stroke:#2c2c2a} .axis{stroke:#383835}
+    .ink{fill:#ffffff} .ink2{fill:#c3c2b7}
+    .empty{fill:#1c5cab} .loaded{fill:#5598e7} .due{stroke:#c3c2b7} .gap{stroke:#1a1a19} .band{fill:#222220}
+  }
+</style>
+<rect class="bg" width="960" height="492" rx="8"/>
+<text class="ink" x="70" y="26" font-size="16" font-weight="600">Iberia: the same 15 freights, two plans</text>
+<rect class="empty" x="70" y="41.0" width="18" height="14" rx="2"/><text class="ink2" x="94" y="52" font-size="12">driving empty (to pickup, back to base)</text>
+<rect class="loaded" x="340" y="41.0" width="18" height="14" rx="2"/><text class="ink2" x="364" y="52" font-size="12">carrying, on time</text>
+<rect class="late" x="480" y="41.0" width="18" height="14" rx="2"/><text class="ink2" x="504" y="52" font-size="12">carrying, delivered late</text>
+<line class="due" x1="664" x2="664" y1="41" y2="55"/><text class="ink2" x="672" y="52" font-size="12">deadline</text>
+<text class="ink" x="70" y="100" font-size="14" font-weight="600">Greedy · Distance rule</text>
+<text class="ink2" x="70" y="118" font-size="12">objective 44476 · 20724 km · on time 5/15 · 237.5 h late in total · done after 69.5 h</text>
+<line class="grid" x1="70.0" x2="70.0" y1="128" y2="258"/>
+<line class="grid" x1="142.16666666666666" x2="142.16666666666666" y1="128" y2="258"/>
+<line class="grid" x1="214.33333333333331" x2="214.33333333333331" y1="128" y2="258"/>
+<line class="grid" x1="286.5" x2="286.5" y1="128" y2="258"/>
+<line class="grid" x1="358.66666666666663" x2="358.66666666666663" y1="128" y2="258"/>
+<line class="grid" x1="430.83333333333337" x2="430.83333333333337" y1="128" y2="258"/>
+<line class="grid" x1="503.0" x2="503.0" y1="128" y2="258"/>
+<line class="grid" x1="575.1666666666667" x2="575.1666666666667" y1="128" y2="258"/>
+<line class="grid" x1="647.3333333333333" x2="647.3333333333333" y1="128" y2="258"/>
+<line class="grid" x1="719.5" x2="719.5" y1="128" y2="258"/>
+<line class="grid" x1="791.6666666666667" x2="791.6666666666667" y1="128" y2="258"/>
+<line class="grid" x1="863.8333333333333" x2="863.8333333333333" y1="128" y2="258"/>
+<line class="grid" x1="936.0" x2="936.0" y1="128" y2="258"/>
+<text class="ink2" x="60" y="143.0" font-size="12" text-anchor="end">V1</text>
+<g><title>F1 on V1: start 0.0 h, pickup 0.0 h, delivered 6.7 h (deadline 15.0 h), on time</title><rect class="loaded" x="70.0" y="132.0" width="81.05815668481091" height="14"/><rect class="empty" x="151.0581566848109" y="132.0" width="81.05815668481091" height="14"/><line class="gap" x1="70.0" x2="70.0" y1="132.0" y2="146.0"/><line class="due" x1="250.41666666666669" x2="250.41666666666669" y1="129.0" y2="149.0"/></g>
+<g><title>F7 on V1: start 13.5 h, pickup 20.2 h, delivered 29.5 h (deadline 14.0 h), 15.5 h late</title><rect class="empty" x="232.11631336962182" y="132.0" width="81.05815668481091" height="14"/><rect class="late" x="313.17447005443273" y="132.0" width="111.48222915613371" height="14"/><rect class="empty" x="424.65669921056644" y="132.0" width="59.794204955548594" height="14"/><line class="gap" x1="232.11631336962182" x2="232.11631336962182" y1="132.0" y2="146.0"/><line class="due" x1="238.38888888888889" x2="238.38888888888889" y1="129.0" y2="149.0"/></g>
+<g><title>F11 on V1: start 34.5 h, pickup 41.2 h, delivered 44.8 h (deadline 15.0 h), 29.8 h late</title><rect class="empty" x="484.45090416611504" y="132.0" width="80.57764713341578" height="14"/><rect class="late" x="565.0285512995308" y="132.0" width="43.988871845361246" height="14"/><rect class="empty" x="609.0174231448921" y="132.0" width="67.78979860211166" height="14"/><line class="gap" x1="484.45090416611504" x2="484.45090416611504" y1="132.0" y2="146.0"/><line class="due" x1="250.41666666666669" x2="250.41666666666669" y1="129.0" y2="149.0"/></g>
+<rect class="band" x="70" y="154" width="866" height="26" opacity="0.6"/>
+<text class="ink2" x="60" y="169.0" font-size="12" text-anchor="end">V2</text>
+<g><title>F2 on V2: start 1.0 h, pickup 1.0 h, delivered 13.9 h (deadline 23.0 h), on time</title><rect class="loaded" x="82.02777777777777" y="158.0" width="155.2012985005638" height="14"/><rect class="empty" x="237.22907627834158" y="158.0" width="155.2012985005638" height="14"/><line class="gap" x1="82.02777777777777" x2="82.02777777777777" y1="158.0" y2="172.0"/><line class="due" x1="346.63888888888886" x2="346.63888888888886" y1="155.0" y2="175.0"/></g>
+<g><title>F10 on V2: start 26.8 h, pickup 33.3 h, delivered 39.7 h (deadline 22.0 h), 17.7 h late</title><rect class="empty" x="392.4303747789054" y="158.0" width="77.94053527385665" height="14"/><rect class="late" x="470.37091005276204" y="158.0" width="77.47850685905371" height="14"/><rect class="empty" x="547.8494169118158" y="158.0" width="155.20129850056378" height="14"/><line class="gap" x1="392.4303747789054" x2="392.4303747789054" y1="158.0" y2="172.0"/><line class="due" x1="334.61111111111114" x2="334.61111111111114" y1="155.0" y2="175.0"/></g>
+<text class="ink2" x="60" y="195.0" font-size="12" text-anchor="end">V3</text>
+<g><title>F3 on V3: start 2.0 h, pickup 2.0 h, delivered 6.1 h (deadline 19.0 h), on time</title><rect class="loaded" x="94.05555555555556" y="184.0" width="49.60853057726298" height="14"/><rect class="empty" x="143.66408613281854" y="184.0" width="49.60853057726297" height="14"/><line class="gap" x1="94.05555555555556" x2="94.05555555555556" y1="184.0" y2="198.0"/><line class="due" x1="298.52777777777777" x2="298.52777777777777" y1="181.0" y2="201.0"/></g>
+<g><title>F6 on V3: start 10.2 h, pickup 20.3 h, delivered 24.2 h (deadline 12.0 h), 12.2 h late</title><rect class="empty" x="193.2726167100815" y="184.0" width="120.35216914021098" height="14"/><rect class="late" x="313.6247858502925" y="184.0" width="47.979930906147786" height="14"/><rect class="empty" x="361.60471675644027" y="184.0" width="159.2855431979471" height="14"/><line class="gap" x1="193.2726167100815" x2="193.2726167100815" y1="184.0" y2="198.0"/><line class="due" x1="214.33333333333331" x2="214.33333333333331" y1="181.0" y2="201.0"/></g>
+<g><title>F14 on V3: start 37.5 h, pickup 44.1 h, delivered 49.2 h (deadline 18.0 h), 31.2 h late</title><rect class="empty" x="520.8902599543874" y="184.0" width="79.51741493429176" height="14"/><rect class="late" x="600.4076748886791" y="184.0" width="61.75472486673982" height="14"/><rect class="empty" x="662.162399755419" y="184.0" width="49.60853057726297" height="14"/><line class="gap" x1="520.8902599543874" x2="520.8902599543874" y1="184.0" y2="198.0"/><line class="due" x1="286.5" x2="286.5" y1="181.0" y2="201.0"/></g>
+<rect class="band" x="70" y="206" width="866" height="26" opacity="0.6"/>
+<text class="ink2" x="60" y="221.0" font-size="12" text-anchor="end">V4</text>
+<g><title>F4 on V4: start 3.0 h, pickup 3.0 h, delivered 8.3 h (deadline 17.0 h), on time</title><rect class="loaded" x="106.08333333333333" y="210.0" width="63.42377148475974" height="14"/><rect class="empty" x="169.50710481809307" y="210.0" width="63.423771484759726" height="14"/><line class="gap" x1="106.08333333333333" x2="106.08333333333333" y1="210.0" y2="224.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="207.0" y2="227.0"/></g>
+<g><title>F8 on V4: start 13.5 h, pickup 22.5 h, delivered 28.6 h (deadline 13.0 h), 15.6 h late</title><rect class="empty" x="232.9308763028528" y="210.0" width="107.95319026699784" height="14"/><rect class="late" x="340.88406656985063" y="210.0" width="73.08293276565126" height="14"/><rect class="empty" x="413.9669993355019" y="210.0" width="104.71534885996562" height="14"/><line class="gap" x1="232.9308763028528" x2="232.9308763028528" y1="210.0" y2="224.0"/><line class="due" x1="226.36111111111111" x2="226.36111111111111" y1="207.0" y2="227.0"/></g>
+<g><title>F13 on V4: start 37.3 h, pickup 46.3 h, delivered 51.3 h (deadline 17.0 h), 34.3 h late</title><rect class="empty" x="518.6823481954675" y="210.0" width="107.95319026699792" height="14"/><rect class="late" x="626.6355384624654" y="210.0" width="60.60223475224518" height="14"/><rect class="empty" x="687.2377732147106" y="210.0" width="63.423771484759754" height="14"/><line class="gap" x1="518.6823481954675" x2="518.6823481954675" y1="210.0" y2="224.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="207.0" y2="227.0"/></g>
+<text class="ink2" x="60" y="247.0" font-size="12" text-anchor="end">V5</text>
+<g><title>F5 on V5: start 4.0 h, pickup 8.8 h, delivered 12.8 h (deadline 13.0 h), on time</title><rect class="empty" x="118.11111111111111" y="236.0" width="58.24110872293696" height="14"/><rect class="loaded" x="176.35221983404807" y="236.0" width="47.260969998406324" height="14"/><rect class="empty" x="223.6131898324544" y="236.0" width="98.2916909431533" height="14"/><line class="gap" x1="118.11111111111111" x2="118.11111111111111" y1="236.0" y2="250.0"/><line class="due" x1="226.36111111111111" x2="226.36111111111111" y1="233.0" y2="253.0"/></g>
+<g><title>F9 on V5: start 20.9 h, pickup 26.8 h, delivered 30.3 h (deadline 12.0 h), 18.3 h late</title><rect class="empty" x="321.9048807756077" y="236.0" width="70.23554577478171" height="14"/><rect class="late" x="392.1404265503894" y="236.0" width="42.63400406163038" height="14"/><rect class="empty" x="434.7744306120198" y="236.0" width="58.24110872293693" height="14"/><line class="gap" x1="321.9048807756077" x2="321.9048807756077" y1="236.0" y2="250.0"/><line class="due" x1="214.33333333333331" x2="214.33333333333331" y1="233.0" y2="253.0"/></g>
+<g><title>F12 on V5: start 35.2 h, pickup 39.5 h, delivered 43.9 h (deadline 17.0 h), 26.9 h late</title><rect class="empty" x="493.0155393349567" y="236.0" width="52.26801260815199" height="14"/><rect class="late" x="545.2835519431087" y="236.0" width="52.268012608151935" height="14"/><line class="gap" x1="493.0155393349567" x2="493.0155393349567" y1="236.0" y2="250.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="233.0" y2="253.0"/></g>
+<g><title>F15 on V5: start 43.9 h, pickup 52.0 h, delivered 61.9 h (deadline 26.0 h), 35.9 h late</title><rect class="empty" x="597.5515645512606" y="236.0" width="98.29169094315341" height="14"/><rect class="late" x="695.843255494414" y="236.0" width="118.78915395657191" height="14"/><rect class="empty" x="814.632409450986" y="236.0" width="91.29925255847752" height="14"/><line class="gap" x1="597.5515645512606" x2="597.5515645512606" y1="236.0" y2="250.0"/><line class="due" x1="382.72222222222223" x2="382.72222222222223" y1="233.0" y2="253.0"/></g>
+<line class="axis" x1="70" x2="936" y1="258" y2="258"/>
+<text class="ink" x="70" y="282" font-size="14" font-weight="600">MILP · best found within the time limit</text>
+<text class="ink2" x="70" y="300" font-size="12">objective 25275 · 13884 km · on time 5/15 · 113.9 h late in total · done after 43.2 h</text>
+<line class="grid" x1="70.0" x2="70.0" y1="310" y2="440"/>
+<line class="grid" x1="142.16666666666666" x2="142.16666666666666" y1="310" y2="440"/>
+<line class="grid" x1="214.33333333333331" x2="214.33333333333331" y1="310" y2="440"/>
+<line class="grid" x1="286.5" x2="286.5" y1="310" y2="440"/>
+<line class="grid" x1="358.66666666666663" x2="358.66666666666663" y1="310" y2="440"/>
+<line class="grid" x1="430.83333333333337" x2="430.83333333333337" y1="310" y2="440"/>
+<line class="grid" x1="503.0" x2="503.0" y1="310" y2="440"/>
+<line class="grid" x1="575.1666666666667" x2="575.1666666666667" y1="310" y2="440"/>
+<line class="grid" x1="647.3333333333333" x2="647.3333333333333" y1="310" y2="440"/>
+<line class="grid" x1="719.5" x2="719.5" y1="310" y2="440"/>
+<line class="grid" x1="791.6666666666667" x2="791.6666666666667" y1="310" y2="440"/>
+<line class="grid" x1="863.8333333333333" x2="863.8333333333333" y1="310" y2="440"/>
+<line class="grid" x1="936.0" x2="936.0" y1="310" y2="440"/>
+<text class="ink2" x="60" y="325.0" font-size="12" text-anchor="end">V1</text>
+<g><title>F5 on V1: start 4.0 h, pickup 4.0 h, delivered 8.0 h (deadline 13.0 h), on time</title><rect class="loaded" x="118.11111111111111" y="314.0" width="48.521262531697175" height="14"/><rect class="empty" x="166.6323736428083" y="314.0" width="48.521262531697175" height="14"/><line class="gap" x1="118.11111111111111" x2="118.11111111111111" y1="314.0" y2="328.0"/><line class="due" x1="226.36111111111111" x2="226.36111111111111" y1="311.0" y2="331.0"/></g>
+<g><title>F9 on V1: start 12.1 h, pickup 15.7 h, delivered 19.3 h (deadline 12.0 h), 7.3 h late</title><rect class="empty" x="215.15363617450546" y="314.0" width="43.770910836607214" height="14"/><rect class="late" x="258.9245470111127" y="314.0" width="43.77091083660713" height="14"/><line class="gap" x1="215.15363617450546" x2="215.15363617450546" y1="314.0" y2="328.0"/><line class="due" x1="214.33333333333331" x2="214.33333333333331" y1="311.0" y2="331.0"/></g>
+<g><title>F10 on V1: start 19.3 h, pickup 19.3 h, delivered 26.0 h (deadline 22.0 h), 4.0 h late</title><rect class="late" x="302.6954578477198" y="314.0" width="80.5776471334159" height="14"/><rect class="empty" x="383.2731049811357" y="314.0" width="80.57764713341584" height="14"/><line class="gap" x1="302.6954578477198" x2="302.6954578477198" y1="314.0" y2="328.0"/><line class="due" x1="334.61111111111114" x2="334.61111111111114" y1="311.0" y2="331.0"/></g>
+<g><title>F14 on V1: start 32.7 h, pickup 32.7 h, delivered 37.9 h (deadline 18.0 h), 19.9 h late</title><rect class="late" x="463.85075211455154" y="314.0" width="62.578121198296174" height="14"/><rect class="empty" x="526.4288733128477" y="314.0" width="62.57812119829623" height="14"/><line class="gap" x1="463.85075211455154" x2="463.85075211455154" y1="314.0" y2="328.0"/><line class="due" x1="286.5" x2="286.5" y1="311.0" y2="331.0"/></g>
+<rect class="band" x="70" y="336" width="866" height="26" opacity="0.6"/>
+<text class="ink2" x="60" y="351.0" font-size="12" text-anchor="end">V2</text>
+<g><title>F1 on V2: start 0.0 h, pickup 6.5 h, delivered 13.0 h (deadline 15.0 h), on time</title><rect class="empty" x="70.0" y="340.0" width="77.94053527385665" height="14"/><rect class="loaded" x="147.94053527385665" y="340.0" width="77.94053527385663" height="14"/><line class="gap" x1="70.0" x2="70.0" y1="340.0" y2="354.0"/><line class="due" x1="250.41666666666669" x2="250.41666666666669" y1="337.0" y2="357.0"/></g>
+<g><title>F6 on V2: start 13.0 h, pickup 16.8 h, delivered 20.7 h (deadline 12.0 h), 8.7 h late</title><rect class="empty" x="225.88107054771328" y="340.0" width="46.7496762675286" height="14"/><rect class="late" x="272.6307468152419" y="340.0" width="46.74967626752857" height="14"/><line class="gap" x1="225.88107054771328" x2="225.88107054771328" y1="340.0" y2="354.0"/><line class="due" x1="214.33333333333331" x2="214.33333333333331" y1="337.0" y2="357.0"/></g>
+<g><title>F7 on V2: start 20.7 h, pickup 20.7 h, delivered 29.6 h (deadline 14.0 h), 15.6 h late</title><rect class="late" x="319.38042308277045" y="340.0" width="107.19445111166704" height="14"/><rect class="empty" x="426.5748741944375" y="340.0" width="107.19445111166704" height="14"/><line class="gap" x1="319.38042308277045" x2="319.38042308277045" y1="340.0" y2="354.0"/><line class="due" x1="238.38888888888889" x2="238.38888888888889" y1="337.0" y2="357.0"/></g>
+<text class="ink2" x="60" y="377.0" font-size="12" text-anchor="end">V3</text>
+<g><title>F3 on V3: start 2.0 h, pickup 2.0 h, delivered 6.1 h (deadline 19.0 h), on time</title><rect class="loaded" x="94.05555555555556" y="366.0" width="49.60853057726298" height="14"/><rect class="empty" x="143.66408613281854" y="366.0" width="49.60853057726297" height="14"/><line class="gap" x1="94.05555555555556" x2="94.05555555555556" y1="366.0" y2="380.0"/><line class="due" x1="298.52777777777777" x2="298.52777777777777" y1="363.0" y2="383.0"/></g>
+<g><title>F11 on V3: start 10.2 h, pickup 10.2 h, delivered 13.9 h (deadline 15.0 h), on time</title><rect class="loaded" x="193.2726167100815" y="366.0" width="43.41007090002762" height="14"/><rect class="empty" x="236.68268761010913" y="366.0" width="43.41007090002759" height="14"/><line class="gap" x1="193.2726167100815" x2="193.2726167100815" y1="366.0" y2="380.0"/><line class="due" x1="250.41666666666669" x2="250.41666666666669" y1="363.0" y2="383.0"/></g>
+<g><title>F15 on V3: start 17.5 h, pickup 27.5 h, delivered 37.5 h (deadline 26.0 h), 11.5 h late</title><rect class="empty" x="280.0927585101367" y="366.0" width="120.35216914021095" height="14"/><rect class="late" x="400.44492765034767" y="366.0" width="120.35216914021083" height="14"/><line class="gap" x1="280.0927585101367" x2="280.0927585101367" y1="366.0" y2="380.0"/><line class="due" x1="382.72222222222223" x2="382.72222222222223" y1="363.0" y2="383.0"/></g>
+<rect class="band" x="70" y="388" width="866" height="26" opacity="0.6"/>
+<text class="ink2" x="60" y="403.0" font-size="12" text-anchor="end">V4</text>
+<g><title>F2 on V4: start 1.0 h, pickup 12.2 h, delivered 25.8 h (deadline 23.0 h), 2.8 h late</title><rect class="empty" x="82.02777777777777" y="392.0" width="134.82024802346547" height="14"/><rect class="late" x="216.84802580124324" y="392.0" width="163.59055787897267" height="14"/><rect class="empty" x="380.4385836802159" y="392.0" width="50.94930167394574" height="14"/><line class="gap" x1="82.02777777777777" x2="82.02777777777777" y1="392.0" y2="406.0"/><line class="due" x1="346.63888888888886" x2="346.63888888888886" y1="389.0" y2="409.0"/></g>
+<g><title>F4 on V4: start 30.0 h, pickup 30.0 h, delivered 35.3 h (deadline 17.0 h), 18.3 h late</title><rect class="late" x="431.38788535416165" y="392.0" width="63.423771484759754" height="14"/><rect class="empty" x="494.8116568389214" y="392.0" width="63.423771484759754" height="14"/><line class="gap" x1="431.38788535416165" x2="431.38788535416165" y1="392.0" y2="406.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="389.0" y2="409.0"/></g>
+<text class="ink2" x="60" y="429.0" font-size="12" text-anchor="end">V5</text>
+<g><title>F8 on V5: start 7.0 h, pickup 7.0 h, delivered 12.8 h (deadline 13.0 h), on time</title><rect class="loaded" x="154.19444444444446" y="418.0" width="70.23554577478166" height="14"/><rect class="empty" x="224.4299902192261" y="418.0" width="70.23554577478171" height="14"/><line class="gap" x1="154.19444444444446" x2="154.19444444444446" y1="418.0" y2="432.0"/><line class="due" x1="226.36111111111111" x2="226.36111111111111" y1="415.0" y2="435.0"/></g>
+<g><title>F12 on V5: start 18.7 h, pickup 23.0 h, delivered 27.4 h (deadline 17.0 h), 10.4 h late</title><rect class="empty" x="294.6655359940078" y="418.0" width="52.268012608151935" height="14"/><rect class="late" x="346.93354860215976" y="418.0" width="52.26801260815188" height="14"/><line class="gap" x1="294.6655359940078" x2="294.6655359940078" y1="418.0" y2="432.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="415.0" y2="435.0"/></g>
+<g><title>F13 on V5: start 27.4 h, pickup 27.4 h, delivered 32.2 h (deadline 17.0 h), 15.2 h late</title><rect class="late" x="399.20156121031164" y="418.0" width="58.24110872293693" height="14"/><rect class="empty" x="457.44266993324857" y="418.0" width="58.24110872293693" height="14"/><line class="gap" x1="399.20156121031164" x2="399.20156121031164" y1="418.0" y2="432.0"/><line class="due" x1="274.47222222222223" x2="274.47222222222223" y1="415.0" y2="435.0"/></g>
+<line class="axis" x1="70" x2="936" y1="440" y2="440"/>
+<text class="muted" x="70.0" y="454" font-size="11" text-anchor="middle">0</text>
+<text class="muted" x="142.16666666666666" y="454" font-size="11" text-anchor="middle">6</text>
+<text class="muted" x="214.33333333333331" y="454" font-size="11" text-anchor="middle">12</text>
+<text class="muted" x="286.5" y="454" font-size="11" text-anchor="middle">18</text>
+<text class="muted" x="358.66666666666663" y="454" font-size="11" text-anchor="middle">24</text>
+<text class="muted" x="430.83333333333337" y="454" font-size="11" text-anchor="middle">30</text>
+<text class="muted" x="503.0" y="454" font-size="11" text-anchor="middle">36</text>
+<text class="muted" x="575.1666666666667" y="454" font-size="11" text-anchor="middle">42</text>
+<text class="muted" x="647.3333333333333" y="454" font-size="11" text-anchor="middle">48</text>
+<text class="muted" x="719.5" y="454" font-size="11" text-anchor="middle">54</text>
+<text class="muted" x="791.6666666666667" y="454" font-size="11" text-anchor="middle">60</text>
+<text class="muted" x="863.8333333333333" y="454" font-size="11" text-anchor="middle">66</text>
+<text class="muted" x="936.0" y="454" font-size="11" text-anchor="middle">72</text>
+<text class="ink2" x="503.0" y="474" font-size="12" text-anchor="middle">Hours since the first freight was released</text>
+</svg>

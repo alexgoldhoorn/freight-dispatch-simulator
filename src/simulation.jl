@@ -1,207 +1,185 @@
-# Main simulation orchestration
+# Discrete-event simulation (ConcurrentSim.jl)
+#
+# One dispatcher process releases freights at their ready time and asks the
+# strategy for a vehicle. Each vehicle is a process with a FIFO inbox; it takes
+# one freight at a time, drives to pickup, delivery and back to base. All
+# results are recorded by the vehicle processes (what actually happened), not by
+# the dispatcher (what it planned).
 
-"""
-    Simulation(freights::DataFrame, vehicles::DataFrame, return_to_base_buffer::Float64, strategy::DispatchStrategy)
+# Everything recorded during one run; no global state.
+struct SimLog
+    assigned::Vector{Int}               # vehicle index per freight, 0 = unserved
+    start_s::Vector{Float64}
+    pickup_s::Vector{Float64}
+    delivered_s::Vector{Float64}
+    back_s::Vector{Float64}
+    trips::Vector{Union{Trip,Nothing}}
+end
 
-Run a freight dispatch simulation with the specified strategy.
+SimLog(n::Int) = SimLog(zeros(Int, n), fill(NaN, n), fill(NaN, n), fill(NaN, n), fill(NaN, n), Vector{Union{Trip,Nothing}}(nothing, n))
 
-# Arguments
-- `freights::DataFrame`: DataFrame containing freight information with columns:
-  - `id`: Freight identifier
-  - `weight_kg`: Weight in kilograms
-  - `pickup_lat`, `pickup_lon`: Pickup coordinates
-  - `delivery_lat`, `delivery_lon`: Delivery coordinates
-  - `pickup_time`, `delivery_time`: Time windows (numeric or DateTime)
-- `vehicles::DataFrame`: DataFrame containing vehicle information with columns:
-  - `id`: Vehicle identifier
-  - `start_lat`, `start_lon`: Starting coordinates
-  - `capacity_kg`: Capacity in kilograms
-  - `speed_km_per_hour`: Travel speed
-  - `base_lat`, `base_lon`: Base coordinates (optional)
-- `return_to_base_buffer::Float64`: Additional time buffer (seconds) after last delivery
-- `strategy::DispatchStrategy`: Dispatch strategy to use (FCFS, Cost, Distance, OverallCost)
-
-# Returns
-- `freight_results_df::DataFrame`: Results for each freight including:
-  - `freight_id`: Freight identifier
-  - `assigned_vehicle`: Assigned vehicle ID (or nothing)
-  - `pickup_time`: Pickup timestamp
-  - `delivery_time`: Delivery timestamp
-  - `completion_time`: Total completion time
-  - `distance_km`: Total distance traveled
-  - `success`: Whether delivery succeeded
-- `vehicle_aggregates_df::DataFrame`: Aggregate statistics for each vehicle including:
-  - `vehicle_id`: Vehicle identifier
-  - `total_distance_km`: Total distance traveled
-  - `total_busy_time_s`: Total busy time
-  - `total_freights_handled`: Number of freights handled
-  - `utilization_rate`: Utilization rate (0-1)
-
-# Example
-```julia
-using FreightDispatchSimulator
-using CSV, DataFrames
-
-freights_df = CSV.read("freights.csv", DataFrame)
-vehicles_df = CSV.read("vehicles.csv", DataFrame)
-
-freight_results, vehicle_aggregates = Simulation(
-    freights_df,
-    vehicles_df,
-    3600.0,  # 1 hour buffer
-    DistanceStrategy()
-)
-```
-"""
-function Simulation(
-    freights::DataFrame,
-    vehicles::DataFrame,
-    return_to_base_buffer::Float64 = 3600.0,
-    strategy::DispatchStrategy = FCFSStrategy(),
-)
-    # Clear previous results
-    empty!(FREIGHT_RESULTS)
-    empty!(VEHICLE_AGGREGATES)
-
-    # Initialize simulation
-    sim = SimJulia.Simulation()
-    println("Starting simulation...")
-
-    # Convert numeric timestamps to DateTime if needed
-    if eltype(freights.pickup_time) <: Number
-        freights.pickup_time = Dates.unix2datetime.(freights.pickup_time)
-    end
-    if eltype(freights.delivery_time) <: Number
-        freights.delivery_time = Dates.unix2datetime.(freights.delivery_time)
-    end
-
-    # Find the earliest and latest timestamps to use as reference
-    reference_time = minimum(vcat(freights.pickup_time, freights.delivery_time))
-    max_delivery_time = maximum(freights.delivery_time)
-
-    # Convert all timestamps to simulation seconds relative to reference
-    freights.pickup_sim_seconds = sim_seconds.(freights.pickup_time, reference_time)
-    freights.delivery_sim_seconds = sim_seconds.(freights.delivery_time, reference_time)
-
-    # Create Freight objects
-    freight_objects = [
-        Freight(
-            string(freights[i, :id]),
-            freights[i, :weight_kg],
-            freights[i, :pickup_lat],
-            freights[i, :pickup_lon],
-            freights[i, :delivery_lat],
-            freights[i, :delivery_lon],
-            freights[i, :pickup_time],
-            freights[i, :delivery_time],
-            freights[i, :pickup_sim_seconds],
-            freights[i, :delivery_sim_seconds],
-        ) for i = 1:nrow(freights)
-    ]
-
-    # Initialize vehicle aggregates
-    for i = 1:nrow(vehicles)
-        vehicle_id = string(vehicles[i, :id])
-        VEHICLE_AGGREGATES[vehicle_id] = VehicleAggregate(vehicle_id, 0.0, 0.0, 0, 0.0)
-    end
-
-    # Set up vehicle inboxes and info
-    vehicle_inbox = Dict{String,Store{Freight}}()
-    vehicles_info = Dict{String,VehicleInfo}()
-
-    for i = 1:nrow(vehicles)
-        vehicle_id = string(vehicles[i, :id])
-        vehicle_inbox[vehicle_id] = Store{Freight}(sim)
-
-        base_lat = if hasproperty(vehicles, :base_lat)
-            vehicles[i, :base_lat]
-        else
-            vehicles[i, :start_lat]
+@resumable function _dispatcher(env::ConcurrentSim.Environment, inst::Instance, strategy::DispatchStrategy, inboxes, log::SimLog)
+    fleet = initial_fleet(inst)
+    for (i, f) in enumerate(inst.freights)
+        t = ConcurrentSim.now(env)
+        if t < f.ready_s
+            @yield ConcurrentSim.timeout(env, f.ready_s - t)
         end
-        base_lon = if hasproperty(vehicles, :base_lon)
-            vehicles[i, :base_lon]
-        else
-            vehicles[i, :start_lon]
+        j = choose_vehicle(strategy, inst, fleet, i, ConcurrentSim.now(env))
+        if j === nothing
+            @debug "No vehicle can carry freight" freight = f.id
+            continue
         end
-
-        vehicles_info[vehicle_id] = VehicleInfo(
-            vehicle_id,
-            vehicles[i, :capacity_kg],
-            vehicles[i, :speed_km_per_hour],
-            0.0,
-            vehicles[i, :start_lat],
-            vehicles[i, :start_lon],
-            base_lat,
-            base_lon,
-        )
-
-        @process run_vehicle_with_results(
-            sim,
-            vehicle_id,
-            vehicles[i, :start_lat],
-            vehicles[i, :start_lon],
-            vehicles[i, :capacity_kg],
-            vehicles[i, :speed_km_per_hour],
-            vehicle_inbox[vehicle_id],
-            reference_time,
-        )
+        start, trip = plan_trip(inst.vehicles[j], fleet[j], f)
+        commit!(fleet[j], inst.vehicles[j], start, trip)
+        log.assigned[i] = j
+        @debug "Assigned" freight = f.id vehicle = inst.vehicles[j].id t = ConcurrentSim.now(env)
+        @yield put!(inboxes[j], i)
     end
+end
 
-    # Create ONE dispatcher process
-    if length(freight_objects) > 0 && length(vehicle_inbox) > 0
-        @process dispatch_freight(
-            sim,
-            freight_objects,
-            vehicle_inbox,
-            vehicles_info,
-            strategy,
-        )
+@resumable function _vehicle(env::ConcurrentSim.Environment, inst::Instance, j::Int, inbox, log::SimLog)
+    v = inst.vehicles[j]
+    lat, lon = v.start_lat, v.start_lon
+    while true
+        i = @yield take!(inbox)
+        f = inst.freights[i]
+        trip = Trip(v, f, lat, lon)
+        log.start_s[i] = ConcurrentSim.now(env)
+        log.trips[i] = trip
+        @yield ConcurrentSim.timeout(env, trip.pickup_s)
+        log.pickup_s[i] = ConcurrentSim.now(env)
+        @yield ConcurrentSim.timeout(env, trip.delivery_s)
+        log.delivered_s[i] = ConcurrentSim.now(env)
+        @yield ConcurrentSim.timeout(env, trip.return_s)
+        log.back_s[i] = ConcurrentSim.now(env)
+        lat, lon = v.base_lat, v.base_lon
     end
+end
 
-    # Calculate simulation end time: max delivery time + buffer
-    simulation_end_time =
-        sim_seconds(max_delivery_time, reference_time) + return_to_base_buffer
-    println("Running simulation until time: ", simulation_end_time, " seconds")
-
-    # Run simulation until max delivery time + buffer
-    run(sim, simulation_end_time)
-
-    # Calculate utilization rates
-    total_sim_time = simulation_end_time
-    for (vehicle_id, agg) in VEHICLE_AGGREGATES
-        agg.utilization_rate = agg.total_busy_time_s / total_sim_time
+function _run_des(inst::Instance, strategy::DispatchStrategy)
+    n = length(inst.freights)
+    log = SimLog(n)
+    env = ConcurrentSim.Simulation()
+    inboxes = [ConcurrentSim.QueueStore{Int}(env) for _ in inst.vehicles]
+    for j in eachindex(inst.vehicles)
+        ConcurrentSim.Process(_vehicle, env, inst, j, inboxes[j], log)
     end
+    ConcurrentSim.Process(_dispatcher, env, inst, strategy, inboxes, log)
+    ConcurrentSim.run(env)
+    return log
+end
 
-    # Convert results to DataFrames
-    freight_results_df = DataFrame([
+function _tables(inst::Instance, log::SimLog, weights::ObjectiveWeights)
+    n, m = length(inst.freights), length(inst.vehicles)
+    km, busy, handled = zeros(m), zeros(m), zeros(Int, m)
+    rows = map(enumerate(inst.freights)) do (i, f)
+        j = log.assigned[i]
+        trip = log.trips[i]
+        served = j != 0
+        served && trip === nothing && error("freight $(f.id) was assigned but never executed")
+        late = served ? max(0.0, log.delivered_s[i] - f.due_s) : 0.0
+        if served
+            km[j] += total_km(trip)
+            busy[j] += total_s(trip)
+            handled[j] += 1
+        end
         (
-            freight_id = r.freight_id,
-            assigned_vehicle = r.assigned_vehicle,
-            pickup_time = r.pickup_time,
-            delivery_time = r.delivery_time,
-            completion_time = r.completion_time,
-            distance_km = r.distance_km,
-            success = r.success,
-        ) for r in FREIGHT_RESULTS
-    ])
+            freight_id = f.id,
+            assigned_vehicle = served ? inst.vehicles[j].id : missing,
+            success = served,
+            weight_kg = f.weight_kg,
+            pickup_lat = f.pickup_lat,
+            pickup_lon = f.pickup_lon,
+            delivery_lat = f.delivery_lat,
+            delivery_lon = f.delivery_lon,
+            ready_s = f.ready_s,
+            due_s = f.due_s,
+            start_s = served ? log.start_s[i] : missing,
+            pickup_s = served ? log.pickup_s[i] : missing,
+            delivered_s = served ? log.delivered_s[i] : missing,
+            back_at_base_s = served ? log.back_s[i] : missing,
+            lateness_s = served ? late : missing,
+            on_time = served && late == 0.0,
+            distance_km = served ? total_km(trip) : 0.0,
+        )
+    end
+    freight_results = DataFrame(rows)
 
-    vehicle_aggregates_df = DataFrame([
-        (
-            vehicle_id = agg.vehicle_id,
-            total_distance_km = agg.total_distance_km,
-            total_busy_time_s = agg.total_busy_time_s,
-            total_freights_handled = agg.total_freights_handled,
-            utilization_rate = agg.utilization_rate,
-        ) for agg in values(VEHICLE_AGGREGATES)
-    ])
-
-    println(
-        "Simulation completed. Processed ",
-        length(FREIGHT_RESULTS),
-        " freights with ",
-        nrow(vehicles),
-        " vehicles.",
+    back = [maximum((log.back_s[i] for i in 1:n if log.assigned[i] == j); init = 0.0) for j in 1:m]
+    makespan = maximum(back; init = 0.0)
+    vehicle_aggregates = DataFrame(
+        vehicle_id = [v.id for v in inst.vehicles],
+        total_distance_km = km,
+        total_busy_time_s = busy,
+        total_freights_handled = handled,
+        utilization_rate = makespan > 0 ? busy ./ makespan : zeros(m),
     )
 
-    return freight_results_df, vehicle_aggregates_df
+    served = log.assigned .!= 0
+    late = [served[i] ? max(0.0, log.delivered_s[i] - inst.freights[i].due_s) : 0.0 for i in 1:n]
+    k = kpis(
+        n,
+        count(!, served),
+        count(i -> served[i] && late[i] == 0.0, 1:n),
+        sum(km),
+        sum(late),
+        maximum(late; init = 0.0),
+        makespan,
+        busy,
+        weights,
+    )
+    return freight_results, vehicle_aggregates, k
+end
+
+"""
+    simulate(instance, strategy; weights=ObjectiveWeights()) -> DispatchResult
+
+Run the discrete-event simulation with an online `strategy`. `instance` can be an
+[`Instance`](@ref), a directory with `freights.csv`/`vehicles.csv`, or use
+`simulate(freights_df, vehicles_df, strategy)`.
+"""
+function simulate(inst::Instance, strategy::DispatchStrategy; weights::ObjectiveWeights = ObjectiveWeights(), method::AbstractString = strategy_name(strategy), solve_time_s = nothing, info::NamedTuple = NamedTuple())
+    t = time()
+    log = _run_des(inst, strategy)
+    elapsed = time() - t
+    fr, va, k = _tables(inst, log, weights)
+    assignment = assignment_dict(inst, log.assigned)
+    return DispatchResult(method, assignment, fr, va, k, something(solve_time_s, elapsed), info)
+end
+
+simulate(x, strategy::DispatchStrategy; kw...) = simulate(load_instance(x), strategy; kw...)
+simulate(freights::DataFrame, vehicles::DataFrame, strategy::DispatchStrategy; kw...) =
+    simulate(load_instance(freights, vehicles), strategy; kw...)
+
+"""
+    evaluate_assignment(instance, assignment; kw...) -> DispatchResult
+
+Replay a fixed assignment (freight id => vehicle id or `nothing`) through the
+same simulation used for the greedy strategies. This is the single evaluator
+that makes all methods comparable.
+"""
+function evaluate_assignment(inst::Instance, assignment::AbstractDict; method::AbstractString = "FixedAssignment", kw...)
+    assignment_vector(inst, assignment)  # validates ids and capacities
+    a = Dict{String,Union{String,Nothing}}(string(k) => (v === nothing ? nothing : string(v)) for (k, v) in assignment)
+    return simulate(inst, FixedAssignment(a); method = method, kw...)
+end
+
+"""
+    Simulation(freights, vehicles, strategy=FCFSStrategy()) -> (freight_results, vehicle_aggregates)
+
+Convenience wrapper around [`simulate`](@ref) that returns only the two tables.
+The input DataFrames are not modified.
+"""
+function Simulation(freights::DataFrame, vehicles::DataFrame, strategy::DispatchStrategy = FCFSStrategy())
+    r = simulate(freights, vehicles, strategy)
+    return r.freight_results, r.vehicle_aggregates
+end
+
+function Simulation(freights::DataFrame, vehicles::DataFrame, ::Real, strategy::DispatchStrategy = FCFSStrategy())
+    Base.depwarn(
+        "`Simulation(freights, vehicles, buffer, strategy)` is deprecated: the simulation now runs until every vehicle is back at base. Use `Simulation(freights, vehicles, strategy)` or `simulate`.",
+        :Simulation,
+    )
+    return Simulation(freights, vehicles, strategy)
 end

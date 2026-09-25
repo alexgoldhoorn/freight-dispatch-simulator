@@ -1,358 +1,239 @@
 # Freight Dispatch Simulator
 
-A Julia package for simulating freight delivery systems with both greedy heuristics and exact optimization, featuring interactive visualization capabilities.
+[![CI](https://github.com/alexgoldhoorn/freight-dispatch-simulator/actions/workflows/CI.yml/badge.svg)](https://github.com/alexgoldhoorn/freight-dispatch-simulator/actions/workflows/CI.yml)
 
-## Features
+A Julia showcase of three ways to dispatch freight to a vehicle fleet: **greedy
+online rules**, **local search** and an **exact MILP**. All three are evaluated in
+**the same discrete-event simulation**, so their numbers can be compared directly.
 
-- **Three Solution Approaches**:
-  - **Greedy Heuristics**: Fast algorithms (FCFS, Cost, Distance, OverallCost) for real-time decisions (milliseconds)
-  - **Local Search**: Metaheuristic that improves greedy solutions through iterative refinement (seconds)
-  - **MILP Optimization**: Exact optimization using Mixed Integer Linear Programming for provably optimal solutions (minutes)
-- **Interactive Visualization**: Generate HTML route maps with PlotlyJS
-- **Comprehensive Comparison**: Compare all approaches with performance metrics
-- **Command Line Interface**: Easy-to-use CLI for running simulations
-- **Flexible Data Input**: Support for CSV input files
-- **Multiple Datasets**: US and EU scenarios (urban, long-haul, mixed)
-- **Theoretical Documentation**: Detailed explanation of algorithms in `SOLUTION_APPROACHES.md`
+![Animated replay: greedy vs MILP on the Iberia dataset](docs/assets/replay_iberia.gif)
 
-## Installation
+*The same 15 freights and 5 trucks, dispatched by a greedy rule (left) and by the MILP (right), on a shared clock.
+Open circles are freights waiting for pickup (red once their deadline has passed); squares are deliveries, green if on time and red if late.
+The MILP drives 33 % fewer km and has half the overdue hours: 43 % cheaper on the shared objective (km + 100 × hours late).
+Interactive version with play/pause and a time slider: [`docs/replay/iberia.html`](docs/replay/iberia.html) (download and open in a browser).*
 
-1. Clone the repository:
+## What it does
+
+- **Discrete-event simulation** ([ConcurrentSim.jl](https://github.com/JuliaDynamics/ConcurrentSim.jl)).
+  Freights are released over time. A dispatcher assigns each one when it is
+  released. Vehicles queue their work and drive pickup → delivery → base. The
+  simulation records the full timeline, lateness against deadlines, and
+  utilization.
+- **Four greedy rules**: FCFS, nearest vehicle, shortest trip, earliest delivery.
+  Each takes microseconds per decision and uses no future information.
+- **Local search**: relocate and swap moves starting from the best greedy solution.
+- **MILP** ([JuMP](https://jump.dev) + [HiGHS](https://highs.dev)): the optimal
+  assignment under *exactly* the simulation's rules. The tests check that the
+  solver's objective equals the objective the simulation measures for its solution.
+- **One evaluator**: every method's assignment is replayed through the simulation
+  and scored with the same objective and KPIs.
+- **Reproducible benchmark**, instance generator, interactive route maps and a CLI.
+
+The model, the rules and the MILP formulation are in
+[SOLUTION_APPROACHES.md](SOLUTION_APPROACHES.md).
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    data[("freights.csv<br/>vehicles.csv")] --> inst["Instance"]
+    inst --> greedy["Greedy rules<br/>decide online, at release"]
+    inst --> ls["Local search<br/>relocate + swap"]
+    inst --> milp["MILP<br/>JuMP + HiGHS"]
+    ls -. scores moves with .-> plan["Analytic evaluator<br/>same rules, O(n)"]
+    greedy -- "strategy" --> disp
+    ls -- "assignment" --> disp
+    milp -- "assignment" --> disp
+    subgraph sim ["Discrete-event simulation (ConcurrentSim)"]
+        disp["Dispatcher process<br/>releases freights"] -- "FIFO queue per vehicle" --> veh["Vehicle processes<br/>pickup → delivery → base"]
+    end
+    veh --> res["DispatchResult<br/>timeline · KPIs · one objective"]
+    plan -. "tests: identical KPIs" .- res
+    res --> vis["Route maps · timelines · replay"]
+```
+
+Every method ends in the same simulation, so every number in this README comes
+from the same evaluator. The MILP models the simulation's rules exactly, and the
+tests check that its objective matches the replay.
+
+## Quick start
+
 ```bash
 git clone https://github.com/alexgoldhoorn/freight-dispatch-simulator.git
 cd freight-dispatch-simulator
-```
-
-2. Install dependencies:
-```bash
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-## Quick Start
-
-### Greedy Heuristic
-
 ```julia
 using FreightDispatchSimulator
-using CSV, DataFrames
 
-# Load data
-freights_df = CSV.read("data/test0/freights.csv", DataFrame)
-vehicles_df = CSV.read("data/test0/vehicles.csv", DataFrame)
+inst = load_instance("data/iberia")              # freights.csv + vehicles.csv
 
-# Run simulation with greedy strategy
-freight_results, vehicle_aggregates = Simulation(
-    freights_df,
-    vehicles_df,
-    3600.0,  # return to base buffer
-    DistanceStrategy()
-)
+greedy = simulate(inst, DistanceStrategy())      # online greedy rule in the simulation
+ls     = local_search_optimize(inst; initial = greedy)
+milp   = optimize_dispatch(inst; time_limit = 60)
 
-# Generate route map
-generate_route_map(freight_results, vehicles_df, "route_map.html")
+greedy.kpis          # objective, km, on-time count, lateness, makespan, utilization, ...
+milp.info            # solver status, proven_optimal, gap, model objective
+
+table, results = compare_methods(inst)          # every method, one table
+generate_route_map(milp, inst, "route_map.html")
 ```
 
-### Local Search (Metaheuristic)
+`simulate` returns a `DispatchResult` with:
 
-```julia
-using FreightDispatchSimulator
-using CSV, DataFrames
+- `freight_results`: per freight, the assigned vehicle and the times of release,
+  trip start, pickup, delivery, return to base and lateness, plus km and coordinates;
+- `vehicle_aggregates`: per vehicle, km, busy time, number of trips and utilization;
+- `kpis`: summary metrics, including the objective.
 
-# Load data
-freights = CSV.read("data/urban/freights.csv", DataFrame)
-vehicles = CSV.read("data/urban/vehicles.csv", DataFrame)
+The input DataFrames are never modified.
 
-# Start with greedy solution
-greedy_result = Simulation(freights, vehicles, 3600.0, DistanceStrategy())
-
-# Improve with local search
-improved = local_search_optimize(greedy_result, freights, vehicles, time_limit=10.0)
-
-println("Initial (greedy): ", improved.initial_objective, " km")
-println("Improved (local search): ", improved.objective_value, " km")
-println("Improvement: ", improved.improvement, "%")
-
-# Generate route map
-generate_route_map(improved.freight_results, vehicles, "improved_route_map.html")
-```
-
-### MILP Optimization
-
-```julia
-using FreightDispatchSimulator
-using CSV, DataFrames
-
-# Load data
-freights = CSV.read("data/urban/freights.csv", DataFrame)
-vehicles = CSV.read("data/urban/vehicles.csv", DataFrame)
-
-# Find optimal solution
-result = optimize_dispatch(freights, vehicles, time_limit=60.0)
-
-println("Optimal distance: ", result.objective_value, " km")
-println("Solve time: ", result.solve_time, " seconds")
-
-# Generate route map from MILP results
-generate_route_map(result.freight_results, vehicles, "optimal_route_map.html")
-```
-
-## Solution Approaches
-
-This package implements three solution approaches with different tradeoffs between solution quality and computational cost. See `SOLUTION_APPROACHES.md` for detailed theory.
-
-### Greedy Heuristics
-
-Fast algorithms that make locally optimal decisions. Implemented in `src/strategies.jl`:
-
-| Strategy | Selection Criterion | Best Use Case |
-|----------|---------------------|---------------|
-| **FCFS** | First available vehicle | Simple, predictable allocation |
-| **Cost** | Closest vehicle to pickup | Minimize empty miles |
-| **Distance** | Shortest total route distance | Minimize fuel consumption |
-| **OverallCost** | Fastest route completion (accounts for speed) | Time-sensitive deliveries |
-
-**Characteristics:**
-- ⚡ Millisecond response times
-- 📈 Linear scalability (handles 100+ freights)
-- ✅ 2-10% from optimal on typical problems
-- 🎯 Best for real-time/online decision-making
-
-### Local Search (Metaheuristic)
-
-Iteratively improves greedy solutions through local search. Implemented in `src/LocalSearch.jl`:
-
-**How it works:**
-1. Start with greedy solution (fast initialization)
-2. Explore neighborhood by swapping freight assignments
-3. Accept improvements until local optimum reached
-
-**Characteristics:**
-- ⚡ Seconds response time (0.1-2s typical)
-- 📊 Improves greedy by 2-5% on average
-- ✅ 0-5% from optimal on typical problems
-- 🎯 Best balance between quality and speed
-
-### MILP Optimization
-
-Exact optimization using Mixed Integer Linear Programming. Implemented in `src/MILPOptimizer.jl`:
-
-**Characteristics:**
-- ✓ Provably optimal solutions (0% gap)
-- ⏱️ Seconds to minutes solving time
-- 📉 Exponential complexity (struggles with >20 freights)
-- 🎯 Best for batch/offline planning
-
-### When to Use Each:
-
-| Criterion | Greedy | Local Search | MILP |
-|-----------|--------|--------------|------|
-| Problem Size | 50+ freights | 10-50 freights | <20 freights |
-| Response Time | <0.01s | 0.1-2s | Minutes OK |
-| Solution Quality | 2-10% gap | 0-5% gap | Optimal (0%) |
-| Use Case | Real-time | Balanced | Strategic |
-| All freights known? | No (online) | Yes (batch) | Yes (batch) |
-
-**Recommendation:** For most applications, **Local Search** offers the best tradeoff between solution quality and computational cost.
-
-## Command Line Interface
+### Command line
 
 ```bash
-julia --project=. scripts/main.jl <input_directory> <strategy> <output_file> [options]
-```
-
-**Arguments:**
-- `input_directory`: Directory containing `freights.csv` and `vehicles.csv`
-- `strategy`: Dispatch strategy (`FCFS`, `Cost`, `Distance`, `OverallCost`)
-- `output_file`: Output CSV file path for freight results
-
-**Options:**
-- `-m [map_file]`: Generate interactive route map (optional HTML file path)
-
-**Examples:**
-```bash
-# Run greedy strategy
-julia --project=. scripts/main.jl data/test0 Distance results.csv -m route_map.html
-
-# Show help
+julia --project=. scripts/main.jl data/iberia MILP results.csv -m route_map.html
+julia --project=. scripts/main.jl data/urban compare results.csv
 julia --project=. scripts/main.jl --help
 ```
 
-## Examples and Visualizations
+Methods: `FCFS`, `Cost`, `Distance`, `OverallCost`, `LocalSearch`, `MILP`, `compare`.
 
-### Greedy Strategy Comparison
-`examples.ipynb` - Compare all four greedy strategies:
-- Performance metrics (distance, utilization, success rates)
-- Interactive charts and graphs
-- Route map generation
-- Multi-dataset analysis
+## Results
 
-### Full Solution Approach Comparison
-`examples_milp_comparison.ipynb` - Compare all three approaches:
-- Greedy vs Local Search vs MILP
-- Optimality gap analysis (how close to optimal)
-- Solving time comparisons (computational cost)
-- Scalability tradeoffs
-- When to use each approach
+Summary of [docs/BENCHMARK.md](docs/BENCHMARK.md), which `julia --project=. scripts/benchmark.jl` regenerates:
 
-### Theoretical Background
-`SOLUTION_APPROACHES.md` - Deep dive into algorithms:
-- Problem formulation and complexity
-- Detailed explanation of each approach
-- MILP mathematical model
-- Metaheuristic algorithms
-- Hybrid approaches
-- References and further reading
+| Dataset | Freights × vehicles | Best greedy rule (gap) | Local search gap | MILP gap | MILP time |
+|---|---|---|---:|---:|---:|
+| `urban` | 15 × 5 | Distance (0.0 %) | 0.0 % | 0.0 % ✓ | 0.02 s |
+| `eu_urban` | 12 × 4 | OverallCost (0.0 %) | 0.0 % | 0.0 % ✓ | 0.11 s |
+| `benelux` | 12 × 4 | OverallCost (0.0 %) | 0.0 % | 0.0 % ✓ | 1.11 s |
+| `longhaul` | 8 × 3 | FCFS (35.5 %) | 0.0 % | 0.0 % ✓ | 0.19 s |
+| `eu_longhaul` | 10 × 4 | OverallCost (21.6 %) | 0.0 % | 0.0 % ✓ | 4.46 s |
+| `iberia` | 15 × 5 | OverallCost (53.2 %) | 0.1 % | 0.0 % (time limit) | 60 s |
+| `mixed` | 20 × 6 | OverallCost (17.1 %) | 3.1 % | 0.0 % ✓ | 42 s |
+| `test1` | 20 × 15 | OverallCost (0.4 %) | 0.0 % | 0.0 % ✓ | 2.71 s |
 
-To run the notebooks:
-```bash
-# Start Jupyter with the project environment
-julia --project=. -e 'using IJulia; notebook(dir=pwd())'
-```
+Gap = how far above the best objective found for that dataset. ✓ = the MILP proved optimality.
+All greedy rules and local search run in under 5 ms on these datasets.
 
-## Data Format
+![Solve time vs. instance size](docs/assets/scalability.svg)
 
-### Freights CSV
+Why the MILP wins on `iberia`, trip by trip (hover a trip for details):
+
+![Vehicle timelines, greedy vs MILP](docs/assets/timeline_iberia.svg)
+
+The greedy rule gives each freight to the idle truck with the shortest trip,
+without looking ahead. Trucks then make long empty runs (light blue) and are
+still busy when later freights arrive. The MILP plans all 15 freights at once:
+less empty driving, and all trucks are back after 43 h instead of 70 h.
+
+<details>
+<summary>Static route maps (greedy vs MILP)</summary>
+
+| Greedy (Distance rule) | MILP |
+|---|---|
+| ![Greedy routes on the Iberia dataset](docs/assets/iberia_distance.png) | ![MILP routes on the Iberia dataset](docs/assets/iberia_milp.png) |
+
+Interactive versions for three datasets are in [`docs/maps/`](docs/maps/).
+</details>
+
+Main points:
+
+- No single greedy rule wins everywhere. *OverallCost* considers queues and is best
+  on most datasets, yet it can still be more than 50 % above the best solution (`iberia`).
+- Local search reaches or comes within 3 % of the best solution on every dataset,
+  in milliseconds.
+- The MILP proves optimality up to about 15–20 freights. Beyond that it hits the
+  60 s limit, and on generated instances with 30–40 freights local search finds
+  better solutions than the time-limited MILP (see [docs/BENCHMARK.md](docs/BENCHMARK.md)).
+
+## Data format
+
+`freights.csv`
+
 ```csv
 id,weight_kg,pickup_lat,pickup_lon,delivery_lat,delivery_lon,pickup_time,delivery_time
-F1,100.0,40.71,-74.01,34.05,-118.24,0.0,10.0
-F2,200.0,37.77,-122.42,41.87,-87.62,5.0,15.0
+F1,800.0,40.4168,-3.7038,41.3851,2.1734,0.0,54000.0
 ```
 
-### Vehicles CSV
+`pickup_time` is the release time and `delivery_time` the deadline. Both are in
+seconds (any origin) or `DateTime`s.
+
+`vehicles.csv`
+
 ```csv
 id,start_lat,start_lon,capacity_kg,speed_km_per_hour
-V1,40.71,-74.01,500.0,60.0
-V2,37.77,-122.42,1000.0,80.0
+V1,40.4168,-3.7038,3500.0,75.0
 ```
 
-Optional columns for vehicles:
-- `base_lat`, `base_lon`: Vehicle base location (defaults to start location)
+Optional `base_lat`, `base_lon` columns set a base different from the start location.
 
-## Interactive Visualization
+`generate_instance(n_freights, n_vehicles; seed)` creates random instances (Catalonia by default).
 
-The package generates interactive HTML maps with clear color-coding by vehicle:
+### Included datasets
 
-### Map Elements:
-- **Route Lines**: Each vehicle has a unique color showing its path
-- **⚫ Pickup Points**: Circles at freight pickup locations (color-matched to vehicle)
-- **■ Delivery Points**: Squares at freight delivery locations (color-matched to vehicle)
-- **⬡ Vehicle Bases**: Hexagons showing where vehicles start/return (color-matched to vehicle)
-- **❌ Failed Freight**: Red X marks for unassigned freights
-- **Hover Info**: Mouse over any element for detailed information
+| Dataset | Freights × vehicles | Region |
+|---|---|---|
+| `urban` | 15 × 5 | New York City |
+| `longhaul` | 8 × 3 | United States |
+| `mixed` | 20 × 6 | United States, urban + long-haul |
+| `eu_urban` | 12 × 4 | Netherlands |
+| `eu_longhaul` | 10 × 4 | Europe |
+| `iberia` | 15 × 5 | Spain and Portugal |
+| `benelux` | 12 × 4 | Belgium, Netherlands, Luxembourg |
+| `test1` | 20 × 15 | Iberia, large fleet |
+| `test0`, `test_failure` | 2–3 × 2 | Tests; `test_failure` has a freight no vehicle can carry |
 
-### How to Read the Map:
-1. Each vehicle has a consistent color throughout (routes, pickups, deliveries, base)
-2. Follow a single color to see one vehicle's entire route
-3. Circles indicate where freights are picked up
-4. Squares indicate where freights are delivered
-5. Hexagons indicate vehicle bases
-6. Failed freights show as red X at their pickup location
-
-The map title shows total freights and how many were successfully assigned vs failed.
-
-## Included Datasets
+## Project layout
 
 ```
-data/
-├── urban/          # US: NYC urban deliveries (15 freights, 5 vehicles)
-├── longhaul/       # US: Cross-country routes (8 freights, 3 vehicles)
-├── mixed/          # US: Combined urban & long-haul (20 freights, 6 vehicles)
-├── eu_urban/       # EU: Netherlands cities (12 freights, 4 vehicles)
-├── eu_longhaul/    # EU: Cross-Europe routes (10 freights, 4 vehicles)
-├── iberia/         # Iberia: Spain & Portugal (15 freights, 5 vehicles)
-├── benelux/        # Benelux: NL/BE/LU region (12 freights, 4 vehicles)
-├── test0/          # Basic test data (2 freights, 2 vehicles)
-├── test1/          # Iberian test data (20 freights, 15 vehicles)
-└── test_failure/   # Failure scenario data
+src/
+  FreightDispatchSimulator.jl   module and exports
+  types.jl                      Freight, Vehicle, Instance, Trip, results, loading
+  distances.jl                  haversine, travel time
+  schedule.jl                   execution rules, analytic evaluator, KPIs
+  strategies.jl                 greedy dispatch rules
+  simulation.jl                 discrete-event simulation (ConcurrentSim)
+  LocalSearch.jl                relocate/swap local search
+  MILPOptimizer.jl              MILP (JuMP + HiGHS)
+  experiments.jl                compare_methods, generate_instance
+  MapVisualization.jl           interactive HTML route maps (plotly.js)
+  Timeline.jl                   vehicle timeline (Gantt) SVG
+  Replay.jl                     animated side-by-side replay (HTML)
+scripts/                        CLI, benchmark, visuals, GIF capture
+docs/                           benchmark results, maps, replay, charts
+examples.ipynb                  walkthrough notebook
 ```
 
-## Performance Comparison
+## Development
 
-Typical results from example datasets:
-
-| Dataset | Size | Greedy Distance | MILP Optimal | Gap | Greedy Time | MILP Time |
-|---------|------|-----------------|--------------|-----|-------------|-----------|
-| test0 | 2F, 2V | 13,842 km | 13,842 km | 0% | 0.002s | 0.07s |
-| Urban | 15F, 5V | ~266 km | ~260 km | 2% | 0.2s | 0.5s |
-| EU Urban | 12F, 4V | ~250 km | ~240 km | 4% | 0.1s | 0.3s |
-| Iberia | 15F, 5V | ~3,500 km | ~3,400 km | 3% | 0.2s | 1.5s |
-
-*F=Freights, V=Vehicles*
-
-**Key Insights:**
-- Greedy Distance strategy typically achieves 0-5% optimality gap
-- MILP provides provably optimal solutions at higher computational cost
-- Greedy scales to large problems; MILP best for <20 freights
-
-## Testing
-
-Run the test suite:
 ```bash
-julia --project=. -e 'using Pkg; Pkg.test()'
+julia --project=. -e 'using Pkg; Pkg.test()'       # tests (CI runs Julia 1.10 and latest)
+julia --project=. scripts/benchmark.jl            # regenerate docs/BENCHMARK.md
+julia --project=. scripts/render_visuals.jl       # regenerate maps, timeline and replay page in docs/
+node scripts/capture/capture_replay.js docs/replay/iberia.html frames/ && \
+  python3 scripts/capture/make_gif.py frames/ docs/assets/replay_iberia.gif   # README GIF
 ```
 
-The tests cover:
-- Greedy dispatch strategies
-- MILP optimization
-- Visualization generation
-- CLI interface
-- Data integrity
+Formatting: `.JuliaFormatter.toml` (Blue style).
 
-## Project Structure
+## Background
 
-```
-freight-dispatch-simulator/
-├── Project.toml                      # Package configuration
-├── Manifest.toml                     # Dependency lock file
-├── README.md                         # This file
-├── examples.ipynb                    # Greedy strategy comparisons
-├── examples_milp_comparison.ipynb    # Greedy vs MILP analysis
-├── src/
-│   ├── FreightDispatchSimulator.jl  # Main module
-│   ├── types.jl                      # Data structures
-│   ├── distances.jl                  # Haversine distance
-│   ├── strategies.jl                 # Greedy strategies
-│   ├── dispatcher.jl                 # Dispatcher logic
-│   ├── vehicle.jl                    # Vehicle process
-│   ├── simulation.jl                 # Simulation orchestration
-│   ├── MapVisualization.jl           # Route visualization
-│   └── MILPOptimizer.jl             # MILP optimization
-├── test/
-│   └── runtests.jl                  # Test suite
-├── scripts/
-│   └── main.jl                      # CLI interface
-└── data/                            # Example datasets
-```
+This project condenses problems I worked on professionally: discrete-event
+simulation for testing courier–order matching algorithms (Glovo), and freight
+planning for road transport (Meight). It deliberately keeps a compact model (full
+truckloads, return to base, no road network), so that the simulation, the
+heuristics and the exact model stay small enough to read in one sitting.
 
-## Dependencies
+## Possible extensions
 
-- `CSV.jl`: CSV file handling
-- `DataFrames.jl`: Data manipulation
-- `SimJulia.jl`: Discrete event simulation
-- `JuMP.jl`: Mathematical optimization
-- `HiGHS.jl`: MILP solver
-- `Plots.jl`: Plotting infrastructure
-- `PlotlyJS.jl`: Interactive visualization
-- `Colors.jl`: Color handling
-- `ResumableFunctions.jl`: Coroutine support
-
-## Contributing
-
-Code should follow Julia formatting conventions:
-```bash
-julia --project=. -e 'using JuliaFormatter; format_file("filename.jl")'
-```
-
-Contributions are welcome! Please open an issue to discuss major changes.
-
-## Future Work
-
-- **Metaheuristics**: Simulated annealing, genetic algorithms, ant colony optimization
-- **Machine Learning**: Learn dispatch policies from historical data
-- **Multi-objective Optimization**: Balance distance, time, cost, emissions
-- **Dynamic Reassignment**: Allow in-flight route adjustments
-- **Stochastic Models**: Account for uncertainty in travel times
+- Rolling-horizon re-optimisation: re-run local search or MILP on the freights not yet started.
+- Consolidation (several freights per trip) and within-vehicle reordering, i.e. a real VRP with time windows.
+- Stochastic travel times, to measure how robust each policy is in simulation.
+- Learning a dispatch policy from simulated data and comparing it with the MILP optimum.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT

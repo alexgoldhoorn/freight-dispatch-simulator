@@ -1,168 +1,87 @@
-include("../src/FreightDispatchSimulator.jl")
+# Command line interface
+#
+#   julia --project=. scripts/main.jl <input_directory> <method> <output_file.csv> [-m [map.html]]
+#   julia --project=. scripts/main.jl --help
 
-using .FreightDispatchSimulator
-using DataFrames, CSV
-using Base.Meta
+using FreightDispatchSimulator
+using CSV, DataFrames
 
-# Constant dictionary mapping strategy names to descriptions
-const AVAILABLE_STRATEGIES = Dict(
-    "FCFS" => ("First Come, First Served - dispatches in order of arrival", "FCFSStrategy"),
-    "Cost" => ("Cost-based dispatching - prioritizes by cost efficiency", "CostStrategy"),
-    "Distance" => ("Distance-based dispatching - prioritizes by proximity", "DistanceStrategy"),
-    "OverallCost" => ("Overall cost optimization - considers total system cost", "OverallCostStrategy")
-)
+const METHODS = [
+    "FCFS" => "greedy: first idle vehicle, else the one free first",
+    "Cost" => "greedy: nearest idle vehicle to the pickup",
+    "Distance" => "greedy: idle vehicle with the shortest full trip",
+    "OverallCost" => "greedy: earliest estimated delivery (considers queues)",
+    "LocalSearch" => "relocate/swap local search from the best greedy rule",
+    "MILP" => "exact MILP (JuMP + HiGHS), 60 s time limit",
+    "compare" => "run all of the above and print a comparison table",
+]
 
-# Function to show available strategies
-function show_available_strategies()
-    println("Available dispatch strategies:")
-    for (name, (description, _)) in AVAILABLE_STRATEGIES
-        println("  $name: $description")
+function usage(io = stdout)
+    println(io, "Usage: julia --project=. scripts/main.jl <input_directory> <method> <output_file.csv> [-m [map.html]]")
+    println(io)
+    println(io, "  input_directory   directory with freights.csv and vehicles.csv")
+    println(io, "  method            one of the methods below")
+    println(io, "  output_file.csv   per-freight results; vehicle totals go to <output_file>_vehicles.csv")
+    println(io, "  -m [map.html]     also write an interactive route map (default <output_file>_map.html)")
+    println(io)
+    println(io, "Methods:")
+    for (name, description) in METHODS
+        println(io, "  ", rpad(name, 12), description)
     end
-    println()
 end
 
-# Function to determine dispatch strategy
-function get_strategy(strategy_name::String)
-    if strategy_name == "FCFS"
-        return FCFSStrategy()
-    elseif strategy_name == "Cost"
-        return CostStrategy()
-    elseif strategy_name == "Distance"
-        return DistanceStrategy()
-    elseif strategy_name == "OverallCost"
-        return OverallCostStrategy()
+function run_method(inst, method)
+    method in first.(FreightDispatchSimulator.GREEDY_STRATEGIES) &&
+        return simulate(inst, Dict(FreightDispatchSimulator.GREEDY_STRATEGIES)[method])
+    method == "LocalSearch" && return compare_methods(inst; methods = [:greedy, :local_search])[2][end]
+    method == "MILP" && return optimize_dispatch(inst; time_limit = 60)
+    error("unknown method $(method)")
+end
+
+function main(args)
+    if isempty(args) || args[1] in ("-h", "--help")
+        usage()
+        return 0
+    end
+    if length(args) < 3 || !(args[2] in first.(METHODS))
+        length(args) >= 2 && println(stderr, "Unknown method '$(args[2])'\n")
+        usage(stderr)
+        return 1
+    end
+    input_dir, method, output_file = args[1:3]
+    map_file = nothing
+    rest = args[4:end]
+    if !isempty(rest) && rest[1] == "-m"
+        map_file = length(rest) >= 2 ? rest[2] : replace(output_file, r"\.csv$" => "") * "_map.html"
+    elseif !isempty(rest)
+        println(stderr, "Unknown argument '$(rest[1])'")
+        return 1
+    end
+
+    inst = load_instance(input_dir)
+    println("Instance: $(length(inst.freights)) freights, $(length(inst.vehicles)) vehicles")
+
+    result = if method == "compare"
+        table, results = compare_methods(inst)
+        show(stdout, table; allrows = true, summary = false, eltypes = false)
+        println()
+        results[argmin([r.kpis.objective for r in results])]
     else
-        error("Unknown strategy: " * strategy_name)
+        run_method(inst, method)
     end
+    println(result)
+
+    CSV.write(output_file, result.freight_results)
+    vehicles_file = replace(output_file, r"\.csv$" => "") * "_vehicles.csv"
+    CSV.write(vehicles_file, result.vehicle_aggregates)
+    println("Wrote $(output_file) and $(vehicles_file)")
+    if map_file !== nothing
+        generate_route_map(result, inst, map_file)
+        println("Wrote $(map_file)")
+    end
+    return 0
 end
 
-# Main function
-function main()
-    args = Base.ARGS
-
-    # Check for --help or -h as first argument
-    if length(args) > 0 && (args[1] == "--help" || args[1] == "-h")
-        println("Usage: julia main.jl <input_directory> <dispatcher_type> <output_file> [-m [map_file]]")
-        println("       julia main.jl --help")
-        println("       julia main.jl -h")
-        println()
-        println("Arguments:")
-        println("  input_directory   Directory containing freights.csv and vehicles.csv")
-        println("  dispatcher_type   Dispatch strategy to use")
-        println("  output_file       Output CSV file path for freight results")
-        println()
-        println("Options:")
-        println("  -m [map_file]     Generate route map visualization (optional HTML file path)")
-        println("                    If no path provided, defaults to <output_file>_map.html")
-        println()
-        show_available_strategies()
-        exit(0)
-    end
-
-    # Show available strategies before parsing args
-    show_available_strategies()
-
-    if length(args) < 3
-        println("Usage: julia main.jl <input_directory> <dispatcher_type> <output_file> [-m [map_file]]")
-        println("       julia main.jl --help")
-        println("       julia main.jl -h")
-        return nothing
-    end
-
-    # Parse command-line arguments
-    input_dir = args[1]
-    dispatcher_type = args[2]
-    output_file = args[3]
-    
-    # Parse optional map generation flag
-    generate_map = false
-    map_output_file = ""
-    
-    # Check for -m flag in remaining arguments
-    remaining_args = args[4:end]
-    i = 1
-    while i <= length(remaining_args)
-        if remaining_args[i] == "-m"
-            generate_map = true
-            # Check if next argument is a file path (doesn't start with -)
-            if i + 1 <= length(remaining_args) && !startswith(remaining_args[i + 1], "-")
-                map_output_file = remaining_args[i + 1]
-                i += 2
-            else
-                # Default to replacing .csv with _map.html
-                map_output_file = replace(output_file, ".csv" => "_map.html")
-                i += 1
-            end
-        else
-            println("Warning: Unknown argument '", remaining_args[i], "'")
-            i += 1
-        end
-    end
-
-    # Validate dispatcher_type
-    if !haskey(AVAILABLE_STRATEGIES, dispatcher_type)
-        println("Error: Unknown dispatcher type '$dispatcher_type'")
-        println()
-        show_available_strategies()
-        exit(1)
-    end
-
-    # Load data
-    freights_df = CSV.read(joinpath(input_dir, "freights.csv"), DataFrame)
-    vehicles_df = CSV.read(joinpath(input_dir, "vehicles.csv"), DataFrame)
-
-    # Get dispatch strategy
-    strategy = get_strategy(dispatcher_type)
-    
-    # Show selected strategy information
-    println("Using dispatch strategy: ", dispatcher_type, " :: ", typeof(strategy))
-    println()
-
-    # Run the simulation
-    freight_results_df, vehicle_aggregates_df = Simulation(
-        freights_df, vehicles_df, 3600.0, strategy
-    )
-
-    # Output results
-    println("\nFreight Results:")
-    println(freight_results_df)
-
-    println("\nVehicle Aggregates:")
-    println(vehicle_aggregates_df)
-
-    # Write freight results
-    CSV.write(output_file, freight_results_df)
-
-    # Write vehicle aggregates to a separate file
-    vehicle_output_file = replace(output_file, ".csv" => "_vehicles.csv")
-    CSV.write(vehicle_output_file, vehicle_aggregates_df)
-
-    println("\nResults written to:")
-    println("  Freight results: ", output_file)
-    println("  Vehicle aggregates: ", vehicle_output_file)
-    
-    # Generate route map if requested
-    if generate_map
-        println("\nGenerating route map...")
-        
-        # Merge freight results with original freight data to get coordinates
-        # Join on freight ID to get pickup/delivery coordinates
-        freight_results_with_coords = leftjoin(
-            freight_results_df, 
-            freights_df, 
-            on = :freight_id => :id,
-            makeunique = true
-        )
-        
-        generate_route_map(
-            freight_results_with_coords,
-            vehicles_df,
-            map_output_file;
-            show_failures=true
-        )
-        println("  Route map: ", map_output_file)
-    end
+if abspath(PROGRAM_FILE) == @__FILE__
+    exit(main(ARGS))
 end
-
-# Run the main function
-main()
